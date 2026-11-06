@@ -1,0 +1,24 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist",
+    "tsBuildInfoFile": "dist/.tsbuildinfo",
+    "paths": {
+      "@edushare/timeline-editor": [
+        "../timeline-editor/src/index.ts"
+      ]
+    }
+  },
+  "include": [
+    "src"
+  ],
+  "exclude": [
+    "src/**/*.test.ts"
+  ],
+  "references": [
+    {
+      "path": "../timeline-editor"
+    }
+  ]
+}
