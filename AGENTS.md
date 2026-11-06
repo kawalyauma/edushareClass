@@ -7,7 +7,7 @@ Build a browser-first **manual** PDF-to-handwriting teaching studio. Teacher sel
 1. Read this document, README, and current repository source.
 2. Read the current open GitHub issues, labels, blockers and active phase. **Discover issues autonomously**. Never accept an issue number from a user as necessary to begin.
 3. Determine eligible phase/workstream using the dependency DAG below and verified acceptance gates. Never infer readiness solely from numeric phase order or open issue count.
-4. Filter eligible issues: `phase:NN`, `status:ready`, no unresolved `blocked-by` links, no existing verified claim, no in-flight PR covering the same work. Prefer highest-priority and smallest independent module.
+4. Filter eligible issues: title prefix `[PNN-XX]` (or `phase:NN` label if labels have been provisioned), open state, no unresolved `blocked-by` links, no existing verified claim, no in-flight PR covering the same work. The title prefix is authoritative until labels are installed. Prefer highest-priority and smallest independent module.
 5. Claim one issue using the coordination protocol below. Agents may work on only one active issue at a time.
 6. Study acceptance criteria and adjacent contracts, implement in an isolated branch/worktree, test, open PR, and link evidence.
 7. After PR merge, mark complete, release claim, find another eligible issue. If none are eligible, report specific blockers, do not invent tasks.
@@ -51,7 +51,7 @@ Each phase has up to 10 independent workstreams; 10 is a concurrency ceiling, no
 - Green tests and review required before merge; release claims only on merge or explicit abandonment.
 
 ## Standard issue contract
-Each issue must provide: objective, deliverables/path ownership, acceptance criteria, tests/evidence, dependencies, and a `phase:NN` label. If dependencies are missing, mark blocked and stop. Design contracts and fixtures before parallel implementation.
+Each issue must provide: objective, deliverables/path ownership, acceptance criteria, tests/evidence, dependencies, and a `[PNN-XX]` title prefix; phase labels are optional. If dependencies are missing, mark blocked and stop. Design contracts and fixtures before parallel implementation.
 
 ## Shared technical decisions
 - Monorepo: `apps/web`, `apps/api`, `packages/stroke-engine`, `packages/lesson-format`, `packages/shared-types`, `tests`, `infrastructure`, `docs`.
