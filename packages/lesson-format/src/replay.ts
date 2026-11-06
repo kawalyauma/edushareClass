@@ -4,7 +4,7 @@ export interface PlacedContent {
   id: string;
   selectionId: string;
   target: Rect;
-  mode: 'handwriting' | 'crop';
+  mode: 'handwriting' | 'crop' | 'math';
   strokes: Stroke[];
   strokeTimes: number[];
 }

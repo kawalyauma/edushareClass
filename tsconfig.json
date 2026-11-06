@@ -21,6 +21,9 @@
     },
     {
       "path": "tests"
+    },
+    {
+      "path": "packages/math-notation"
     }
   ]
 }

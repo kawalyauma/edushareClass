@@ -2,6 +2,7 @@ import {useCallback,useEffect,useMemo,useRef,useState} from 'react';
 import type {BoardAction,Lesson,Rect,SourceSelection,Stroke} from '@edushare/shared-types';
 import {historyStatus,replay} from '@edushare/lesson-format';
 import {planHandwriting} from '@edushare/stroke-engine';
+import {parseMath,layoutMath} from '@edushare/math-notation';
 
 const newId=()=>crypto.randomUUID();
 const logicalTime=(actions:BoardAction[]):number=>actions.reduce((t,a)=>Math.max(t,a.t+(a.type==='stroke.write'?a.stroke.durationMs:0)),0)+1;
@@ -76,7 +77,7 @@ export function useBoardStudio(external:Lesson,saveLesson:(lesson:Lesson)=>Promi
   const showPage=useCallback(async(pageId:string)=>{
     await commit(l=>({...l,actions:[...l.actions,action(l,'page.show',{pageId})]}));showAll();
   },[commit,showAll]);
-  const placeSelection=useCallback(async(selection:SourceSelection,mode:'handwriting'|'crop')=>{
+  const placeSelection=useCallback(async(selection:SourceSelection,mode:'handwriting'|'crop'|'math')=>{
     let interval:{start:number;end:number}|null=null;
     await commit(l=>{
       const {next,pageId}=ensurePage(l);
@@ -91,7 +92,14 @@ export function useBoardStudio(external:Lesson,saveLesson:(lesson:Lesson)=>Promi
       if(mode==='handwriting'&&!plan)throw new Error('This selection has no text. Place its original PDF crop instead.');
       if(plan?.unsupported.length)throw new Error(`Unsupported handwritten characters: ${plan.unsupported.map(x=>x.char).join(' ')}. Use the original PDF crop instead.`);
       if(plan)target={...target,height:Math.ceil(plan.height+28)};
-      else {
+      else if(mode==='math') {
+        if(!text)throw new Error('No mathematical text selected. Use the original PDF crop.');
+        const math=parseMath(text);
+        if(!math.ok)throw new Error(`Maths cannot be represented exactly (${math.reason}). Use original source crop.`);
+        const box=layoutMath(math.ast,62);
+        const scale=Math.min(1,1680/Math.max(1,box.width),320/Math.max(1,box.ascent+box.descent));
+        target={...target,width:Math.max(40,box.width*scale+24),height:(box.ascent+box.descent)*scale+24};
+      } else {
         const ratio=selection.bbox.height/selection.bbox.width;
         const imageWidth=Math.min(1170,Math.max(180,selection.bbox.width*2.5));
         const fit=Math.min(1,680/(imageWidth*ratio));
