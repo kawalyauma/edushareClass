@@ -11,6 +11,8 @@ export interface HandwritingOptions {
   emSize?:number; lineHeight?:number;
   strokeWidth?:number; color?:string; speed?:number;
   penLiftMs?:number; wordPauseMs?:number; characterSpacing?:number;
+  /** Photo-reference lettering: tall, narrow and subtly varied per character. */
+  handStyle?:'original'|'classroom';
 }
 export interface HandwritingPlan {
   strokes:PositionedStroke[];
@@ -29,6 +31,8 @@ export function planHandwriting(o:HandwritingOptions):HandwritingPlan {
   const penLift=Math.max(0,o.penLiftMs??60)/speed;
   const wordPause=Math.max(0,o.wordPauseMs??140)/speed;
   const spacing=o.characterSpacing??0.12;
+  const classroom=o.handStyle==='classroom';
+  const aspect=classroom?.79:1;
   let x=o.x,y=o.y,elapsed=0,lines=1;
   const strokes:PositionedStroke[]=[];
   const unsupported:HandwritingPlan['unsupported']=[];
@@ -40,17 +44,23 @@ export function planHandwriting(o:HandwritingOptions):HandwritingPlan {
     if(c==='\r')continue;
     if(c==='\n'){lineBreak();elapsed+=wordPause;continue;}
     if(c===' '||c==='\t'){
-      const advance=em*(c==='\t'?2.0:0.46);
+      const advance=em*(c==='\t'?1.5:classroom?.39:.46);
       if(x>startX&&x+advance>startX+o.maxWidth)lineBreak();
       else x+=advance;
       elapsed+=wordPause;continue;
     }
-    const width=em*(glyphAdvance(c)+spacing);
+    const width=em*(glyphAdvance(c)*aspect+spacing);
     if(x>startX&&x+width>startX+o.maxWidth)lineBreak();
     const path=glyphPath(c);
     if(!path){unsupported.push({char:c,index:i}); x+=width;elapsed+=wordPause;continue;}
     for(const sub of path){
-      const points=sub.map(([px,py])=>({x:x+px*em,y:y+py*em}));
+      const tilt=classroom?((i*13)%9-4)*.010:0;
+      const baseline=classroom?((i*7)%5-2)*em*.007:0;
+      const points=sub.map(([px,py],k)=>({
+        x:x+(px*aspect+(classroom?(py-.45)*tilt:0))*em,
+        y:y+py*em*(classroom?1.055:1)+baseline,
+        ...(classroom?{pressure:.48+((i*17+k*7)%9)*.045}:{}),
+      }));
       const durationMs=Math.max(80,Math.round(measure(points)*1.85/speed));
       strokes.push({points,width:o.strokeWidth??3.6,color:o.color??'#f5f0d8',durationMs,
         glyph:c,charIndex:i,startMs:Math.round(elapsed),penLiftMs:Math.round(penLift)});

@@ -3,6 +3,8 @@ import type {BoardAction,Lesson,RecordingSegment,Rect,SourceSelection,Stroke} fr
 import {historyStatus,replay} from '@edushare/lesson-format';
 import {planHandwriting} from '@edushare/stroke-engine';
 import {parseMath,layoutMath} from '@edushare/math-notation';
+import {planChalkSection} from '../chalkboard/chalkNotes';
+import type {ChalkColumns} from '../chalkboard/chalkNotes';
 
 const newId=()=>crypto.randomUUID();
 const logicalTime=(actions:BoardAction[]):number=>actions.reduce((t,a)=>Math.max(t,a.t+(a.type==='stroke.write'?a.stroke.durationMs:0)),0)+1;
@@ -157,6 +159,49 @@ export function useBoardStudio(external:Lesson,saveLesson:(lesson:Lesson)=>Promi
     if(interval){const times=interval as {start:number;end:number};startPlayback(times.start,times.end);}else showAll();
   },[commit,makeAction,width,colour,speed,startPlayback,showAll]);
 
+  /** Convert a verified PDF section into original chalk strokes on auto-paginated boards. */
+  const writePdfChalkSection=useCallback(async(selection:SourceSelection,columns:ChalkColumns)=>{
+    const text=(selection.displayText??selection.text)?.trim();
+    if(!text)throw new Error('Select a PDF section with extractable text. Scanned pages need the original image crop.');
+    const layout=planChalkSection(text,columns,speed,latest.current.title);
+    let firstTime=0,lastTime=0;
+    await commit(l=>{
+      let next:Lesson={...l,pages:[...l.pages],actions:[...l.actions]};
+      if(replay(next).theme==='white'){
+        next.actions.push(makeAction(next,'board.theme.set',{theme:'green'}));
+      }
+      for(const sheet of layout.pages){
+        const pageId=newId();
+        const created=makeAction(next,'page.add',{pageId});
+        next.pages.push({id:pageId,index:next.pages.length,chalkColumns:sheet.columns});
+        next.actions.push(created);
+        const shown=makeAction(next,'page.show',{pageId});
+        next.actions.push(shown);
+        if(!firstTime)firstTime=created.t;
+        for(const row of sheet.rows){
+          const place=makeAction(next,'content.place',{
+            pageId,selectionId:selection.id,mode:'handwriting',
+            target:{x:row.x,y:row.y,width:row.width,height:row.height}
+          });
+          next.actions.push(place);
+          const start=logicalTime(next.actions)+360;
+          for(const stroke of row.plan.strokes){
+            next.actions.push({
+              id:newId(),type:'stroke.write',pageId,contentId:place.id,
+              t:start+stroke.startMs,
+              stroke:{points:stroke.points,width:stroke.width,
+                color:stroke.color,durationMs:stroke.durationMs}
+            });
+          }
+          lastTime=Math.max(lastTime,start+row.plan.endMs);
+        }
+      }
+      return next;
+    });
+    if(lastTime>firstTime)startPlayback(firstTime,lastTime);
+    else showAll();
+    return layout.pages.length;
+  },[commit,makeAction,speed,startPlayback,showAll]);
   const draw=useCallback(async(stroke:Stroke)=>{
     await commit(l=>{const {next,pageId}=ensurePage(l,makeAction);return {...next,actions:[...next.actions,makeAction(next,'ink.draw',{pageId,stroke})]};});showAll();
   },[commit,showAll,makeAction]);
@@ -198,6 +243,6 @@ export function useBoardStudio(external:Lesson,saveLesson:(lesson:Lesson)=>Promi
   },[commit]);
   return {lesson,board,liveBoard,page,currentPageId,setRecordingClock,upsertSegment,error,working,tool,setTool,colour,setColour,width,setWidth,
     speed,setSpeed,style,setStyle,playhead,isPlaying,pause,resume,showAll,startPlayback,
-    newPage,showPage,placeSelection,placeTypedText,draw,erase,clear,move,remove,changeTheme,undo,redo,history,seek,updateLesson};
+    newPage,showPage,placeSelection,placeTypedText,writePdfChalkSection,draw,erase,clear,move,remove,changeTheme,undo,redo,history,seek,updateLesson};
 }
 export type BoardStudio=ReturnType<typeof useBoardStudio>;

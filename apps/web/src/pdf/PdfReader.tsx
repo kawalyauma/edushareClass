@@ -7,7 +7,7 @@ import {PdfPage} from './PdfPage';
 import {LocalPdfAssets,checkedPdfBytes,sha256} from './sourceAssets';
 
 interface Props {lesson:Lesson;saveLesson:(next:Lesson)=>Promise<void>}
-const MODE_LABEL={text:'Select a PDF text line',crop:'Select an image or scanned diagram'} as const;
+const MODE_LABEL={text:'Select a PDF text line',section:'Drag over a complete PDF section',crop:'Select an image or scanned diagram'} as const;
 
 function SelectionPreview({selection,assets,onCorrect}: {selection:SourceSelection|undefined;assets:LocalPdfAssets;onCorrect:(text:string)=>Promise<void>}){
   const [url,setUrl]=useState<string|null>(null);
@@ -54,7 +54,7 @@ export function PdfReader({lesson,saveLesson}:Props){
   const [zoom,setZoom]=useState(1);
   const [rotation,setRotation]=useState(0);
   const [page,setPage]=useState(1);
-  const [mode,setMode]=useState<'text'|'crop'>('text');
+  const [mode,setMode]=useState<'text'|'section'|'crop'>('text');
   const [saving,setSaving]=useState(false);
   const [lastSelectionId,setLastSelectionId]=useState<string|null>(null);
   const source=lesson.sources.find(s=>s.id===sourceId);
@@ -133,7 +133,7 @@ export function PdfReader({lesson,saveLesson}:Props){
         </div>
         <div className="pdf-zoom"><label>Zoom <input aria-label="PDF zoom" type="range" min="0.5" max="3" step="0.25" value={zoom} onChange={e=>setZoom(Number(e.target.value))}/></label><span>{Math.round(zoom*100)}%</span>
           <button type="button" className="btn" onClick={()=>setRotation(r=>(r+90)%360)}>Rotate 90°</button></div>
-        <fieldset className="pdf-modes"><legend>Selection mode</legend>{(['text','crop'] as const).map(m=><label key={m}><input type="radio" name="pdf-mode" checked={mode===m} onChange={()=>setMode(m)}/>{MODE_LABEL[m]}</label>)}</fieldset>
+        <fieldset className="pdf-modes"><legend>Selection mode</legend>{(['text','section','crop'] as const).map(m=><label key={m}><input type="radio" name="pdf-mode" checked={mode===m} onChange={()=>setMode(m)}/>{MODE_LABEL[m]}</label>)}</fieldset>
       </>}
     </div>
     {password&&<form className="pdf-password" onSubmit={e=>{e.preventDefault();password.update(passwordInput);setPassword(null);setPasswordInput('');}}><label>{password.reason===2?'Incorrect password. Try again.':'PDF password required'} <input type="password" value={passwordInput} onChange={e=>setPasswordInput(e.target.value)}/></label><button className="btn" type="submit">Unlock PDF</button></form>}
@@ -150,7 +150,7 @@ export function PdfReader({lesson,saveLesson}:Props){
       }}><div style={{height:total*slotHeight,position:'relative'}}>
         {visible.map(n=><div key={`${source.id}-${n}`} className="pdf-page-slot" style={{position:'absolute',top:(n-1)*slotHeight,left:0,width:'max-content',minWidth:'100%',height:slotHeight}}><PdfPage key={`${source.id}-${n}`} doc={doc} source={source} pageNumber={n} zoom={zoom} rotation={rotation} mode={mode} assets={assets} onCreate={onCreate}/></div>)}
       </div></div>}
-    {doc&&<p className="pdf-footnote">Only five pages are rendered near the current scroll position. Original PDF files and crops remain in your browser's local storage.</p>}
+    {doc&&<p className="pdf-footnote">Drag in section mode to capture several consecutive lines for a chalkboard layout. Only five pages are rendered near your current scroll position. Original PDF files and crops stay in this browser.</p>}
     <section className="pdf-selection-section" aria-label="Selection preview"><h3>Selection preview {saving?'· saving…':''}</h3><SelectionPreview selection={currentSelection} assets={assets} onCorrect={onCorrect}/></section>
   </div>;
 }

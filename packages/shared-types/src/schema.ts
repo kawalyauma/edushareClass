@@ -79,7 +79,10 @@ export const StrokeSchema = z.object({
 });
 export type Stroke = z.infer<typeof StrokeSchema>;
 
-export const BoardPageSchema = z.object({ id, index: z.number().int().nonnegative() });
+export const BoardPageSchema = z.object({ id, index: z.number().int().nonnegative(),
+  /** Photo-reference chalk notes layout, absent for legacy boards. */
+  chalkColumns: z.union([z.literal(1),z.literal(2),z.literal(3)]).optional(),
+});
 export type BoardPage = z.infer<typeof BoardPageSchema>;
 
 const base = { id, t: ms };

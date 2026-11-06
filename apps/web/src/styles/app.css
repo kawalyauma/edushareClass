@@ -183,6 +183,7 @@
 .pdf-inline-error { border:1px solid #9a301a; padding:var(--space-2); color:#9a301a; background:#fff1ec; }
 
 .pdf-page-canvas:has(.pdf-crop-hint) {touch-action:none;}
+.pdf-page-canvas:has(.pdf-crop-hint) .pdf-crop-draft{border:3px dashed #e8bc4d;background:#d2e6ed64;}
 
 /* Phase 03/04 — real stroke handwriting on a stable board-only canvas. */
 .board-stage{display:flex;flex-direction:column;gap:var(--space-2);min-width:0;outline-offset:4px;}
@@ -230,3 +231,10 @@
 .board-controls input[aria-label="Edit lesson title"]{width:100%;}
 .board-controls label:has(input[aria-label="Edit lesson title"]){display:grid;gap:.4rem;}
 @media(max-width:680px){.lesson-create{display:grid;align-items:stretch;}.lesson-create-label{min-width:0;}}
+
+/* Photo-reference classroom chalkboard: clear section capture and teacher controls. */
+.chalk-section-fieldset{background:linear-gradient(155deg,#f4f5ec,#e6f0e7);border-color:#7fa68d!important;color:#1c3a2c;}
+.chalk-section-fieldset legend{color:#19442e;}
+.chalk-section-fieldset .board-note{color:#2e5848;}
+.chalk-section-fieldset button[data-variant='primary']{background:#1d563e;color:#fff;border-color:#1d563e;font-weight:700;min-height:2.6rem;}
+.pdf-modes input[type=radio]{accent-color:#1d6847;}

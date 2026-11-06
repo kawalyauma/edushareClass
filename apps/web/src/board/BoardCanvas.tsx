@@ -7,6 +7,7 @@ import {paintStroke} from '@edushare/stroke-engine';
 import {parseMath,layoutMath,drawMath} from '@edushare/math-notation';
 import type {BoardStudio} from './useBoardStudio';
 import {LocalPdfAssets} from '../pdf/sourceAssets';
+import {drawClassroomChalkboard} from '../chalkboard/paintBoard';
 
 const backgrounds={green:'#123b31',black:'#151b24',white:'#ffffff'} as const;
 const foregrounds={green:'#d9e8e0',black:'#e6e8ef',white:'#172f49'} as const;
@@ -48,9 +49,12 @@ export function BoardCanvas({studio,captureRef}: {studio:BoardStudio;captureRef?
   useEffect(()=>{
     const element=canvas.current;if(!element)return;
     const ctx=element.getContext('2d');if(!ctx)return;
-    ctx.setTransform(1,0,0,1,0,0);ctx.fillStyle=backgrounds[studio.board.theme];ctx.fillRect(0,0,BOARD_WIDTH,BOARD_HEIGHT);
+    ctx.setTransform(1,0,0,1,0,0);
+    const pageMeta=studio.lesson.pages.find(p=>p.id===studio.board.currentPageId);
+    const columns=pageMeta?.chalkColumns??1;
+    drawClassroomChalkboard(ctx,studio.board.theme,columns,studio.lesson.title,!!pageMeta?.chalkColumns);
     const page=studio.board.pages.find(p=>p.id===studio.board.currentPageId);
-    if(!page){ctx.fillStyle=foregrounds[studio.board.theme];ctx.font='48px sans-serif';ctx.fillText('New teaching board',96,120);return;}
+    if(!page){ctx.fillStyle=foregrounds[studio.board.theme];ctx.font='40px sans-serif';ctx.fillText('Start by selecting PDF text or writing your own notes',115,300);return;}
     for(const content of page.content){
       const original=studio.lesson.actions.find(a=>a.type==='content.place'&&a.id===content.id);
       const shift=original&&original.type==='content.place'?{
@@ -78,7 +82,7 @@ export function BoardCanvas({studio,captureRef}: {studio:BoardStudio;captureRef?
         ctx.save();ctx.translate(shift.x,shift.y);
         content.strokes.forEach((stroke,i)=>{
           const elapsed=studio.playhead===Infinity?Infinity:studio.playhead-content.strokeTimes[i]!;
-          paintStroke(ctx,stroke,elapsed/stroke.durationMs,studio.style);
+          paintStroke(ctx,stroke,elapsed/stroke.durationMs,pageMeta?.chalkColumns?'chalk':studio.style);
         });ctx.restore();
       }
     }
