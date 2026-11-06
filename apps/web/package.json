@@ -18,7 +18,8 @@
     "pdfjs-dist": "6.4.299",
     "@edushare/stroke-engine": "*",
     "@edushare/math-notation": "*",
-    "@edushare/recording-core": "*"
+    "@edushare/recording-core": "*",
+    "@edushare/timeline-editor": "*"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^6.2.1",

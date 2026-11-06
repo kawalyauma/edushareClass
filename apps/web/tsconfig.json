@@ -35,6 +35,9 @@
     },
     {
       "path": "../../packages/recording-core"
+    },
+    {
+      "path": "../../packages/timeline-editor"
     }
   ]
 }

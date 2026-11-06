@@ -67,6 +67,7 @@ export function useBoardStudio(external:Lesson,saveLesson:(lesson:Lesson)=>Promi
   },[]);
   const resume=useCallback(()=>startPlayback(Number.isFinite(playhead)?playhead:0,lastActionEnd(latest.current.actions)),[startPlayback,playhead]);
   const showAll=useCallback(()=>{pause();setPlayhead(Infinity);},[pause]);
+  const seek=useCallback((sourceTimeMs:number)=>{pause();setPlayhead(Math.max(0,Math.round(sourceTimeMs)));},[pause]);
   const board=useMemo(()=>replay(lesson,playhead),[lesson,playhead]);
   const liveBoard=useMemo(()=>replay(lesson),[lesson]);
   const currentPageId=liveBoard.currentPageId;
@@ -158,11 +159,12 @@ export function useBoardStudio(external:Lesson,saveLesson:(lesson:Lesson)=>Promi
     const target=historyStatus(latest.current.actions).canRedo;if(!target)return;
     await commit(l=>({...l,actions:[...l.actions,makeAction(l,'history.redo',{targetActionId:target})]}));showAll();
   },[commit,showAll,makeAction]);
+  const updateLesson=useCallback((fn:(lesson:Lesson)=>Lesson)=>commit(fn),[commit]);
   const upsertSegment=useCallback(async(segment:RecordingSegment)=>{
     await commit(l=>({...l,segments:[...l.segments.filter(s=>s.id!==segment.id),segment]}));
   },[commit]);
   return {lesson,board,liveBoard,page,currentPageId,setRecordingClock,upsertSegment,error,working,tool,setTool,colour,setColour,width,setWidth,
     speed,setSpeed,style,setStyle,playhead,isPlaying,pause,resume,showAll,startPlayback,
-    newPage,showPage,placeSelection,draw,erase,clear,move,remove,changeTheme,undo,redo,history};
+    newPage,showPage,placeSelection,draw,erase,clear,move,remove,changeTheme,undo,redo,history,seek,updateLesson};
 }
 export type BoardStudio=ReturnType<typeof useBoardStudio>;
