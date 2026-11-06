@@ -44,3 +44,8 @@
 .export-controls {padding:1rem;border-top:2px solid var(--color-border,#64748b)}
 .export-controls progress { width:100%;min-height:1rem;}
 .export-controls input[type=text] {max-width:100%;width:18rem;}
+
+.cloud-sync{padding:1rem;border-top:2px solid var(--color-border,#64748b)}
+.cloud-sync label{display:block;margin:.65rem 0;max-width:100%}
+.cloud-sync input[type=email],.cloud-sync input[type=password],.cloud-sync input[type=url]{display:block;width:100%;max-width:36rem}
+.cloud-sync fieldset{min-width:0}
