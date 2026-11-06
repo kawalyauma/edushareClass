@@ -20,6 +20,9 @@
       "path": "packages/recording-core"
     },
     {
+      "path": "packages/timeline-editor"
+    },
+    {
       "path": "infrastructure/claim-coordinator"
     },
     {

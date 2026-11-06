@@ -124,6 +124,17 @@ export const RecordingSegmentSchema = z.object({
 });
 export type RecordingSegment = z.infer<typeof RecordingSegmentSchema>;
 
+// ---- Phase 07: non-destructive timeline clips and persistent edit history ----
+export const TimelineClipSchema = z.object({
+  id, segmentId: id,
+  sourceInMs: ms, sourceOutMs: ms,
+  rate: z.number().finite().min(0.5).max(2),
+}).refine(x => x.sourceOutMs > x.sourceInMs,{message:'Timeline trim end must follow start'});
+export const TimelineEditSchema = z.object({clips: z.array(TimelineClipSchema),excludedSegmentIds:z.array(id)});
+export const TimelineHistorySchema = z.object({
+  past:z.array(TimelineEditSchema).max(25), future:z.array(TimelineEditSchema).max(25),
+});
+
 // ---- Lesson ----
 
 export const LessonSchema = z
@@ -138,6 +149,8 @@ export const LessonSchema = z
     pages: z.array(BoardPageSchema),
     actions: z.array(BoardActionSchema),
     segments: z.array(RecordingSegmentSchema),
+    timeline: TimelineEditSchema.optional(),
+    timelineHistory: TimelineHistorySchema.optional(),
   })
   .superRefine((lesson, ctx) => {
     const sources = new Map(lesson.sources.map((s) => [s.id, s]));
@@ -166,6 +179,21 @@ export const LessonSchema = z
       if ((a.type === 'history.undo' || a.type === 'history.redo') && !seen.has(a.targetActionId))
         issue(['actions', i, 'targetActionId'], 'history target must be an earlier action');
     });
+    const segmentMap = new Map(lesson.segments.map(s=>[s.id,s]));
+    const validateTimeline=(timeline: z.infer<typeof TimelineEditSchema>,path:(string|number)[])=>{
+      const clipIds=new Set<string>();
+      timeline.clips.forEach((clip,i)=>{
+        if(clipIds.has(clip.id))issue([...path,'clips',i,'id'],'duplicate timeline clip ID');
+        clipIds.add(clip.id);
+        const seg=segmentMap.get(clip.segmentId);
+        if(!seg)issue([...path,'clips',i,'segmentId'],'unknown recorded segment');
+        else if(seg.endMs!==undefined && clip.sourceOutMs>seg.endMs-seg.startMs)
+          issue([...path,'clips',i,'sourceOutMs'],'trim exceeds recorded segment duration');
+      });
+    };
+    if(lesson.timeline)validateTimeline(lesson.timeline,['timeline']);
+    lesson.timelineHistory?.past.forEach((t,i)=>validateTimeline(t,['timelineHistory','past',i]));
+    lesson.timelineHistory?.future.forEach((t,i)=>validateTimeline(t,['timelineHistory','future',i]));
     lesson.segments.forEach((s, i) => {
       if (s.endMs !== undefined && s.endMs < s.startMs)
         issue(['segments', i, 'endMs'], 'endMs precedes startMs');

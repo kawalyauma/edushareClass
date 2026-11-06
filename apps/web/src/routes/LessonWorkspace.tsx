@@ -9,6 +9,7 @@ import {BoardCanvas} from '../board/BoardCanvas';
 import {BoardControls} from '../board/BoardControls';
 import {useBoardStudio} from '../board/useBoardStudio';
 import {useLessonRecording} from '../recording/useLessonRecording';
+import {TimelineEditor} from '../timeline/TimelineEditor';
 import { useAsync } from '../useAsync';
 
 export function LessonWorkspace() {
@@ -72,7 +73,7 @@ function OpenedLesson({lesson,saveLesson}: {lesson:Lesson;saveLesson:(next:Lesso
     <StudioShell
       source={<PdfReader lesson={studio.lesson} saveLesson={saveLesson}/>}
       board={<BoardCanvas studio={studio} captureRef={boardCanvas}/>}
-      controls={<BoardControls studio={studio} recording={recording}/>}
+      controls={<><BoardControls studio={studio} recording={recording}/><TimelineEditor studio={studio} recording={recording}/></>}
     />
   </>;
 }
