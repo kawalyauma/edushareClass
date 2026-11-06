@@ -96,24 +96,27 @@ def create_mp4(manifest_path: Path, media_dir: Path, output: Path) -> dict[str, 
         sources.append(file)
     with tempfile.TemporaryDirectory(prefix='edushare-mp4-') as tmp:
         directory=Path(tmp)
-        normalised=[]
-        for i,(clip,source) in enumerate(zip(clips,sources)):
-            dest=directory/f'part-{i:03d}.mp4'
+        # Concatenate *before* encoding, so there is only one AAC encoder delay
+        # and no independently primed per-clip streams (previously added ~220ms/2 clips).
+        graph=[]
+        for i,clip in enumerate(clips):
+            start_ms=clip['sourceInMs']/1000
+            end_ms=clip['sourceOutMs']/1000
             rate=float(clip['rate'])
-            command=['ffmpeg','-hide_banner','-loglevel','error','-nostdin','-y',
-                '-i',str(source),'-ss',f"{clip['sourceInMs']/1000:.3f}",
-                '-t',f"{(clip['sourceOutMs']-clip['sourceInMs'])/1000:.3f}",
-                '-vf',f'setpts=(PTS-STARTPTS)/{rate:.7f},scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2:black,fps=30,format=yuv420p',
-                '-af',f'atempo={rate:.7f},aresample=async=1:first_pts=0',
-                '-c:v','libx264','-preset','veryfast','-crf','21','-profile:v','high','-pix_fmt','yuv420p',
-                '-c:a','aac','-b:a','160k','-ar','48000','-ac','2','-movflags','+faststart',str(dest)]
-            execute(command,timeout=900)
-            normalised.append(dest)
-        listing=directory/'concat.txt'
-        listing.write_text(''.join(f"file '{p.name}'\n" for p in normalised),encoding='utf-8')
+            graph.append(f'[{i}:v:0]trim=start={start_ms:.3f}:end={end_ms:.3f},setpts=(PTS-STARTPTS)/{rate:.7f},scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2:black,fps=30,format=yuv420p[v{i}]')
+            graph.append(f'[{i}:a:0]atrim=start={start_ms:.3f}:end={end_ms:.3f},asetpts=PTS-STARTPTS,atempo={rate:.7f},aresample=48000:async=1:first_pts=0,aformat=sample_fmts=fltp:channel_layouts=stereo[a{i}]')
+        labelled=''.join(f'[v{i}][a{i}]' for i in range(len(clips)))
+        graph.append(f'{labelled}concat=n={len(clips)}:v=1:a=1[v][a]')
+        graph_file=directory/'filters.txt'
+        graph_file.write_text(';'.join(graph),encoding='utf-8')
         staged=directory/'final.mp4'
-        execute(['ffmpeg','-hide_banner','-loglevel','error','-nostdin','-y','-f','concat','-safe','0','-i',str(listing),
-            '-map','0:v:0','-map','0:a:0','-c','copy','-movflags','+faststart',str(staged)],timeout=900)
+        arguments=['ffmpeg','-hide_banner','-loglevel','error','-nostdin','-y']
+        for source in sources:arguments.extend(['-i',str(source)])
+        arguments.extend(['-filter_complex_script',str(graph_file),'-map','[v]','-map','[a]',
+            '-c:v','libx264','-preset','veryfast','-crf','21','-profile:v','high',
+            '-pix_fmt','yuv420p','-r','30','-c:a','aac','-b:a','160k','-ar','48000',
+            '-ac','2','-movflags','+faststart',str(staged)])
+        execute(arguments,timeout=1800)
         verification=probe(staged)
         video=next((s for s in verification.get('streams',[]) if s.get('codec_type')=='video'),None)
         audio=next((s for s in verification.get('streams',[]) if s.get('codec_type')=='audio'),None)
@@ -123,12 +126,16 @@ def create_mp4(manifest_path: Path, media_dir: Path, output: Path) -> dict[str, 
             raise ExportError('Export validation failed: output is not 1920×1080.')
         expected=sum((c['sourceOutMs']-c['sourceInMs'])/1000/c['rate'] for c in clips)
         actual=float(verification.get('format',{}).get('duration','0'))
-        if abs(actual-expected)>max(.35,expected*.01):
-            raise ExportError(f'Output timing failed verification: {actual:.2f}s vs expected {expected:.2f}s.')
-        # Only commit verified output; a failed export does not clobber existing media.
+        if abs(actual-expected)>max(.08,expected*.001):
+            raise ExportError(f'Output timing failed verification: {actual:.3f}s vs expected {expected:.3f}s.')
+        v_duration=float(video.get('duration',actual))
+        a_duration=float(audio.get('duration',actual))
+        if abs(v_duration-a_duration)>.10:
+            raise ExportError(f'A/V drift exceeded 100 ms ({v_duration:.3f}s video, {a_duration:.3f}s audio).')
+        # Only commit verified output; failed exports never clobber existing media.
         shutil.copy2(staged,output)
     return {'path':str(output),'codec':'h264+aac','resolution':'1920x1080','duration_s':actual,
-            'segments':len(clips),'size_bytes':output.stat().st_size}
+            'segments':len(clips),'size_bytes':output.stat().st_size,'av_drift_s':abs(v_duration-a_duration)}
 
 
 def main() -> None:
