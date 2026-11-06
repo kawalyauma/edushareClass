@@ -51,6 +51,10 @@ export const SourceSelectionSchema = z.object({
   kind: SelectionKindSchema,
   /** Extracted text, verbatim from the PDF. Absent for scanned/crop-only selections. */
   text: z.string().optional(),
+  /** Optional explicitly teacher-corrected display text; never overwrites PDF-extracted original. */
+  displayText: z.string().optional(),
+  /** Raw, ordered text-layer fragments before layout-based whitespace reconstruction. */
+  sourceChunks: z.array(z.string()).optional(),
   /** Asset key of the stored source crop image fallback. */
   cropAssetId: id.optional(),
 });

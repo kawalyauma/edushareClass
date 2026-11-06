@@ -21,7 +21,7 @@ There are **10 open issues in each phase**, **100 open issues total** as of back
 ## Launch instructions for orchestrator / agent runner
 
 1. Clone repository and read [AGENTS.md](AGENTS.md).
-2. Start **Phase 01 only**; up to 10 parallel workers, but obey module dependencies.
+2. **Current stop point: Phase 02.** Phase 01 has been merged, and Phase 02 source integration was delivered with outstanding browser QA. Do not initiate Phase 03 or later without a verified gate. Up to ten workers may run only once the exclusive claim coordinator is validated.
 3. Before concurrent claiming, implement Phase 01 exclusive-claim coordinator. Until complete, operate under a **single-claim dispatcher** and start independent agents only after leases have been reserved by the dispatcher.
 4. Each worker lists open GitHub issues, discovers a ready `[P01-XX]` issue, requests exclusive claim, receives a branch name and works independently. Never manually dictate issue numbers.
 5. Submit a PR with evidence. Release lease after merge; repeat until the phase integration gate closes.

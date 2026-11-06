@@ -4,12 +4,25 @@
     "noEmit": true,
     "composite": false,
     "declaration": false,
-    "types": ["node"]
+    "types": [
+      "node"
+    ]
   },
-  "include": ["."],
+  "include": [
+    "."
+  ],
   "references": [
-    { "path": "../packages/shared-types" },
-    { "path": "../packages/lesson-format" },
-    { "path": "../infrastructure/claim-coordinator" }
+    {
+      "path": "../packages/shared-types"
+    },
+    {
+      "path": "../packages/lesson-format"
+    },
+    {
+      "path": "../infrastructure/claim-coordinator"
+    },
+    {
+      "path": "../packages/pdf-selection"
+    }
   ]
 }

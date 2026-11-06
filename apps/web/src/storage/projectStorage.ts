@@ -2,10 +2,12 @@ import { parseLesson } from '@edushare/lesson-format';
 import type { Lesson } from '@edushare/shared-types';
 
 export const DB_NAME = 'edushareclass';
-export const DB_VERSION = 1;
+export const DB_VERSION = 2;
 export const LESSONS = 'lessons';
 /** Reserved for Phase 06: progressively persisted media chunks keyed by chunk id. */
 export const MEDIA_CHUNKS = 'mediaChunks';
+export const SOURCE_ASSETS = 'sourceAssets';
+export const CROP_ASSETS = 'cropAssets';
 
 export class StorageUnavailableError extends Error {
   constructor(cause?: unknown) {
@@ -66,6 +68,8 @@ export class IndexedDbProjectStorage implements ProjectStorage {
         if (!db.objectStoreNames.contains(LESSONS))
           db.createObjectStore(LESSONS, { keyPath: 'id' });
         if (!db.objectStoreNames.contains(MEDIA_CHUNKS)) db.createObjectStore(MEDIA_CHUNKS);
+        if (!db.objectStoreNames.contains(SOURCE_ASSETS)) db.createObjectStore(SOURCE_ASSETS);
+        if (!db.objectStoreNames.contains(CROP_ASSETS)) db.createObjectStore(CROP_ASSETS);
       };
       req.onsuccess = () => {
         const db = req.result;

@@ -14,7 +14,7 @@ See [docs/developer-setup.md](docs/developer-setup.md). Quick check: `npm instal
 
 ## Phases
 1. Foundation and architecture
-2. PDF reader and selection
+2. PDF reader and selection — implementation delivered; browser QA pending
 3. Handwriting stroke engine
 4. Teaching board
 5. Maths and diagrams
@@ -26,3 +26,11 @@ See [docs/developer-setup.md](docs/developer-setup.md). Quick check: `npm instal
 
 ## Priorities
 Accuracy of PDF content; realistic writing; teacher-controlled pacing; reliable recovery; synchronized voice; private recordings; 1080p MP4 output.
+
+## Phase 02 PDF selection
+
+The Source PDF panel can accept local PDFs (up to 50 MiB), navigate pages, zoom/rotate,
+select a text line or manually crop a scanned formula/diagram, and preview exact
+source crops before carrying the selection forward. PDFs and crops are stored only in
+IndexedDB. Mathematical text remains flagged for visual source review.
+See [Phase 02 acceptance checkpoint](docs/phase-02-acceptance.md).

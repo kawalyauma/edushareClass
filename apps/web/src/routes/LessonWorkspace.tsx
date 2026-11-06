@@ -1,4 +1,6 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import type { Lesson } from '@edushare/shared-types';
+import { PdfReader } from '../pdf/PdfReader';
 import { Link, useParams } from 'react-router-dom';
 import { StudioShell } from '../shell/StudioShell';
 import { useStorage } from '../storage/context';
@@ -10,6 +12,8 @@ export function LessonWorkspace() {
   const storage = useStorage();
   const load = useCallback(() => storage.load(lessonId), [storage, lessonId]);
   const [state, reload] = useAsync(load);
+  const [edited, setEdited] = useState<Lesson | null>(null);
+  useEffect(() => setEdited(null), [lessonId]);
 
   if (state.status === 'loading')
     return (
@@ -46,13 +50,17 @@ export function LessonWorkspace() {
       </div>
     );
 
-  const { lesson } = r;
+  const lesson = edited ?? r.lesson;
+  async function saveLesson(next: Lesson) {
+    await storage.save(next);
+    setEdited(next);
+  }
   return (
     <>
       <h1 className="skip-link">{lesson.title}</h1>
       <StudioShell
         source={
-          <EmptyState title="No PDF loaded" description="PDF selection arrives in Phase 02." />
+          <PdfReader lesson={lesson} saveLesson={saveLesson} />
         }
         board={
           <div className="board-surface" role="img" aria-label="Teaching board (empty)">
@@ -62,7 +70,7 @@ export function LessonWorkspace() {
         controls={
           <EmptyState
             title="Controls"
-            description="Pace, pen and recording controls arrive in later phases."
+            description="Phase 02 source selections can now be previewed and checked. Handwriting and recording controls arrive in later phases."
           />
         }
       />
