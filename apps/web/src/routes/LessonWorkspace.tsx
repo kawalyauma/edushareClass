@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Lesson } from '@edushare/shared-types';
 import { PdfReader } from '../pdf/PdfReader';
 import { Link, useParams } from 'react-router-dom';
@@ -8,6 +8,7 @@ import { EmptyState, ErrorBanner } from '../ui';
 import {BoardCanvas} from '../board/BoardCanvas';
 import {BoardControls} from '../board/BoardControls';
 import {useBoardStudio} from '../board/useBoardStudio';
+import {useLessonRecording} from '../recording/useLessonRecording';
 import { useAsync } from '../useAsync';
 
 export function LessonWorkspace() {
@@ -64,12 +65,14 @@ export function LessonWorkspace() {
 /** Only mount the board controller after IndexedDB has loaded a valid lesson. */
 function OpenedLesson({lesson,saveLesson}: {lesson:Lesson;saveLesson:(next:Lesson)=>Promise<void>}) {
   const studio=useBoardStudio(lesson,saveLesson);
+  const boardCanvas=useRef<HTMLCanvasElement|null>(null);
+  const recording=useLessonRecording(studio,boardCanvas);
   return <>
     <h1 className="skip-link">{lesson.title}</h1>
     <StudioShell
       source={<PdfReader lesson={studio.lesson} saveLesson={saveLesson}/>}
-      board={<BoardCanvas studio={studio}/>}
-      controls={<BoardControls studio={studio}/>}
+      board={<BoardCanvas studio={studio} captureRef={boardCanvas}/>}
+      controls={<BoardControls studio={studio} recording={recording}/>}
     />
   </>;
 }

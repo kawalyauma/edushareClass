@@ -200,3 +200,9 @@
 .board-content-list{list-style:none;padding:0;margin:0;display:grid;gap:var(--space-2);}
 .board-content-list li{display:grid;gap:var(--space-1);padding:var(--space-2);border:1px solid var(--color-border);border-radius:var(--radius);font-size:.79rem;}
 .board-content-list .btn{padding:2px 8px;}
+
+/* Phase 06 — explicit local recording controls. */
+.recording-controls{display:grid;gap:var(--space-2);}
+.recording-controls meter{display:block;width:100%;max-width:300px;height:20px;}
+.recording-controls a.btn{display:inline-block;text-decoration:none;width:max-content;max-width:100%;overflow-wrap:anywhere;}
+.recording-recovery{display:grid;gap:var(--space-2);}

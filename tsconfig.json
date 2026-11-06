@@ -14,6 +14,12 @@
       "path": "packages/stroke-engine"
     },
     {
+      "path": "packages/math-notation"
+    },
+    {
+      "path": "packages/recording-core"
+    },
+    {
       "path": "infrastructure/claim-coordinator"
     },
     {
@@ -21,9 +27,6 @@
     },
     {
       "path": "tests"
-    },
-    {
-      "path": "packages/math-notation"
     }
   ]
 }

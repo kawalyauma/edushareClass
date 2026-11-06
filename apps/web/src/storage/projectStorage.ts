@@ -125,8 +125,16 @@ export class IndexedDbProjectStorage implements ProjectStorage {
 
   async remove(id: string): Promise<void> {
     const db = await this.db();
-    const tx = db.transaction(LESSONS, 'readwrite');
+    // Erase the teacher's own voice/video alongside the lesson: no orphaned private media.
+    const tx = db.transaction([LESSONS, MEDIA_CHUNKS], 'readwrite');
     tx.objectStore(LESSONS).delete(id);
+    const chunks = tx.objectStore(MEDIA_CHUNKS);
+    const prefix = `${id}::`;
+    const cursor = chunks.openKeyCursor(IDBKeyRange.bound(prefix, `${prefix}\uffff`));
+    cursor.onsuccess = () => {
+      const entry = cursor.result;
+      if (entry) { chunks.delete(entry.primaryKey); entry.continue(); }
+    };
     await done(tx);
   }
 }

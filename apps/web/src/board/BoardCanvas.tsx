@@ -1,4 +1,5 @@
 import {useEffect,useMemo,useRef,useState} from 'react';
+import type {RefObject} from 'react';
 import type {PointerEvent as ReactPointerEvent} from 'react';
 import {BOARD_HEIGHT,BOARD_WIDTH} from '@edushare/shared-types';
 import type {Point,Stroke} from '@edushare/shared-types';
@@ -17,7 +18,7 @@ const pointSegmentDistance=(p:Point,a:Point,b:Point)=>{
 export function isStrokeHit(stroke:Stroke,p:Point,radius=18):boolean{
   return stroke.points.some((b,i)=>i>0&&pointSegmentDistance(p,stroke.points[i-1]!,b)<=radius+stroke.width/2);
 }
-export function BoardCanvas({studio}: {studio:BoardStudio}){
+export function BoardCanvas({studio,captureRef}: {studio:BoardStudio;captureRef?:RefObject<HTMLCanvasElement|null>}){
   const canvas=useRef<HTMLCanvasElement>(null);
   const assets=useMemo(()=>new LocalPdfAssets(),[]);
   const [images,setImages]=useState<Map<string,ImageBitmap>>(new Map());
@@ -127,7 +128,7 @@ export function BoardCanvas({studio}: {studio:BoardStudio}){
         if(e.key===' '){e.preventDefault();studio.isPlaying?studio.pause():studio.resume();}
       }else if(e.key.toLowerCase()==='z'){e.preventDefault();if(e.shiftKey)void studio.redo();else void studio.undo();}
     }}>
-    <canvas ref={canvas} width={BOARD_WIDTH} height={BOARD_HEIGHT}
+    <canvas ref={node=>{canvas.current=node;if(captureRef)captureRef.current=node;}} width={BOARD_WIDTH} height={BOARD_HEIGHT}
       className="teaching-canvas" role="img" aria-label="Teaching board drawing surface, 16 by 9 ratio"
       onPointerDown={pointerDown} onPointerMove={pointerMove} onPointerUp={pointerUp} onPointerCancel={pointerUp}/>
     <div className="board-stage-footer"><span role="status" aria-live="polite">{status}</span><span>{studio.liveBoard.pages.length} page(s) · {studio.page?.ink.length??0} pen strokes</span></div>

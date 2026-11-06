@@ -2,7 +2,9 @@ import {useState} from 'react';
 import type {BoardStudio} from './useBoardStudio';
 import {lastActionEnd} from './useBoardStudio';
 import {isSupportedMath} from '@edushare/math-notation';
-export function BoardControls({studio}: {studio:BoardStudio}){
+import {RecordingControls} from '../recording/RecordingControls';
+import type {LessonRecording} from '../recording/useLessonRecording';
+export function BoardControls({studio,recording}: {studio:BoardStudio;recording:LessonRecording}){
   const [selectionId,setSelectionId]=useState('');
   const [notice,setNotice]=useState<string|null>(null);
   const selected=studio.lesson.selections.find(s=>s.id===selectionId)??studio.lesson.selections.at(-1);
@@ -65,6 +67,7 @@ export function BoardControls({studio}: {studio:BoardStudio}){
         </div>
       </li>)}
     </ul></fieldset>}
+    <RecordingControls recording={recording}/>
     {studio.error&&<p role="alert" className="pdf-inline-error">{studio.error}</p>}
     {notice&&<p role="status">{notice}</p>}
     <p className="board-note">Keyboard on board: Ctrl+Z undo, Ctrl+Shift+Z redo, N new page, Space playback. Lessons and drawing actions save to this browser.</p>
