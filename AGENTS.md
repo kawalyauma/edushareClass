@@ -6,7 +6,7 @@ Build a browser-first **manual** PDF-to-handwriting teaching studio. Teacher sel
 ## Mandatory startup procedure — DO NOT ASK THE OWNER FOR AN ISSUE NUMBER
 1. Read this document, README, and current repository source.
 2. Read the current open GitHub issues, labels, blockers and active phase. **Discover issues autonomously**. Never accept an issue number from a user as necessary to begin.
-3. Determine active phase: lowest phase (01–10) with incomplete release-gate issue or remaining open work. Work only on active-phase issues unless a documented dependency explicitly requires cross-phase work.
+3. Determine eligible phase/workstream using the dependency DAG below and verified acceptance gates. Never infer readiness solely from numeric phase order or open issue count.
 4. Filter eligible issues: `phase:NN`, `status:ready`, no unresolved `blocked-by` links, no existing verified claim, no in-flight PR covering the same work. Prefer highest-priority and smallest independent module.
 5. Claim one issue using the coordination protocol below. Agents may work on only one active issue at a time.
 6. Study acceptance criteria and adjacent contracts, implement in an isolated branch/worktree, test, open PR, and link evidence.
@@ -20,8 +20,28 @@ GitHub comments/labels are **not atomic locks**. Do NOT rely on "first comment w
 - If transactional coordination infrastructure is not yet available, **do not run 10 agents concurrently**. Run a single dispatcher temporarily to reserve distinct issues and record claims; agents still autonomously choose from offered eligible work after dispatcher approval.
 - GitHub issue assignees may remain empty because CLI agent identities often are not GitHub users. The authoritative claim is the lease record, not assignee names.
 
-## Phase scheduling
-Exactly 10 independent workstreams per phase are tracked as issues. Parallel is a maximum, not a mandate: dependencies can lower safe concurrency. Phase order 01–10. Phase-01 bootstrap first establishes claim coordination, contracts and app skeleton; phase transitions require all applicable acceptance gates and owner-approved checkpoints when marked `requires-owner-review`. Do not treat "10 agents" as permission to skip dependencies.
+## Dependency-aware phase scheduling (mandatory)
+Each phase has up to 10 independent workstreams; 10 is a concurrency ceiling, not a mandatory number of active agents. Never start implementation merely because an issue is open.
+
+**Bootstrap gate (Phase 1):** Complete claim coordinator #9, shared contracts #1/#3, app scaffold #2, and build/test baseline #8 before any uncontrolled parallel agent execution. A single dispatcher may allocate non-overlapping issues until exclusive claim leases are verified. Finish Phase 1 integration gate #10 before downstream implementation is released.
+
+**Dependency DAG and release gates:**
+- Phase 01: foundation. Gate: contracts, claim service, app shell, local project persistence, automated/local checks integrated.
+- Phase 02: PDF reader. Requires Phase 01 gate. May run alongside Phase 03; its contract must provide stable source IDs, page coordinates, text/crop selection representation, and fidelity fixtures.
+- Phase 03: stroke handwriting engine. Requires Phase 01 gate and the shared lesson/board contracts. May run alongside Phase 02, independently of PDF UI.
+- Phase 04: interactive board. Requires PDF selection-to-board interface from Phase 02 and stroke renderer/scheduler contracts from Phase 03; full integration gate requires complete Phase 02 and 03 acceptance.
+- Phase 05: mathematics and diagrams. Requires Phase 04 board composition, source crop fallback, and stroke glyph/layout interfaces.
+- Phase 06: voice/video recording. May begin after Phase 04 has a stable board-only compositing surface and event clock; need not wait for all Phase 05 maths, but final recorded-lesson gate must verify math content and image crops.
+- Phase 07: editing. Requires Phase 06 segment schema, persistent chunks, deterministic board action replay, and recovery contracts.
+- Phase 08: export. Requires Phase 06 capture and segment metadata. Can run alongside Phase 07; integration/concatenation tasks wait for final Phase 07 segment editing contract.
+- Phase 09: cloud persistence. Auth/storage schema design may start after Phase 01 contracts; cloud media integration requires Phase 06/08 media artefact contracts. Do not mandate cloud access for manual local recording.
+- Phase 10: release. Requires all mandatory gates of Phases 01–09; security/accessibility/performance tests can begin earlier but no production release until final sign-off.
+
+**Agent eligibility rules:** determine readiness from *task-level* dependencies, not lowest phase alone. A phase label is not proof of readiness. A work item with an unmet dependency must be marked blocked and not claimed. If both Phase 02 and Phase 03 are eligible, agents may choose from either; maintain a maximum 10 active agents across the approved wave unless the owner explicitly changes concurrency. Shared contracts may have additional critical-path dependencies. Never let parallel agents independently edit the same contracts.
+
+**Gate evidence:** a phase gate requires merged PRs, green build/typecheck/tests, source-fidelity checks where applicable, media proof where applicable, and a written acceptance checkpoint. Owner approval is required where labelled `requires-owner-review`. No phase unlock from issue creation alone.
+
+**Current launch policy:** Phase 01 is the only authorised implementation wave until its bootstrap gate is verified. Do not launch downstream implementation based on this document alone.
 
 ## Branch and PR process
 - Branch: `agent/<agent-id>/pNN-<short-task>`; no shared working directory and no direct push to main.
