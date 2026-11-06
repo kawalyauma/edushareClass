@@ -7,6 +7,6 @@ import './styles/app.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <RouterProvider router={createBrowserRouter(routes)} />
+    <RouterProvider router={createBrowserRouter(routes, { basename: import.meta.env.BASE_URL })} />
   </StrictMode>,
 );

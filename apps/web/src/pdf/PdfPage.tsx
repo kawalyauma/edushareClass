@@ -55,7 +55,7 @@ export function PdfPage({doc,source,pageNumber,zoom,rotation,mode,assets,onCreat
     return ()=>{cancelled=true;task?.cancel();};
   },[doc,pageNumber,zoom,rotation]);
 
-  async function saveSelection(pdfRect:Rect, text?:string, warnings:string[]=[]){
+  async function saveSelection(pdfRect:Rect, text?:string, warnings:string[]=[], sourceChunks:string[]=[]){
     const canvasElement=canvas.current;
     if(!ready||!canvasElement||busy)return;
     setBusy(true);setError(null);
