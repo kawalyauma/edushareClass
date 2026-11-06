@@ -31,6 +31,24 @@ describe('router and workspace navigation', () => {
     expect(await screen.findByRole('tablist', { name: 'Studio panels' })).toBeInTheDocument();
   });
 
+  it('uses a custom lesson title and opens the studio without a PDF', async () => {
+    const user = userEvent.setup();
+    const storage = freshStorage();
+    const router = renderAt('/', storage);
+    await screen.findByText('No lessons yet');
+    await user.type(screen.getByRole('textbox', { name: 'New lesson title' }), 'P6 Science — Plants');
+    await user.click(screen.getByRole('button', { name: 'New lesson' }));
+    await waitFor(() => expect(router.state.location.pathname).toMatch(/^\/lesson\/.+/));
+    const lessonId = router.state.location.pathname.split('/').at(-1)!;
+    const result = await storage.load(lessonId);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.lesson.title).toBe('P6 Science — Plants');
+      expect(result.lesson.sources).toEqual([]);
+    }
+    expect(await screen.findByRole('textbox', { name: 'Text to handwrite' })).toBeInTheDocument();
+  });
+
   it('lists, opens and deletes saved lessons', async () => {
     const storage = freshStorage();
     await storage.save(createLesson({ id: 'one', title: 'Geometry' }));

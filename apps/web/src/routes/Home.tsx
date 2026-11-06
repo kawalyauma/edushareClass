@@ -11,11 +11,12 @@ export function Home() {
   const load = useCallback(() => storage.list(), [storage]);
   const [state, reload] = useAsync(load);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [newTitle, setNewTitle] = useState('');
 
   async function create() {
     try {
       setActionError(null);
-      const lesson = createLesson({ id: crypto.randomUUID(), title: 'Untitled lesson' });
+      const lesson = createLesson({ id: crypto.randomUUID(), title: newTitle.trim() || 'Untitled lesson' });
       await storage.save(lesson);
       navigate(`/lesson/${lesson.id}`);
     } catch (e) {
@@ -35,11 +36,17 @@ export function Home() {
 
   return (
     <div className="page">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h1>Lessons</h1>
-        <Button variant="primary" onClick={create}>
-          New lesson
-        </Button>
+      <div className="lesson-create">
+        <div>
+          <h1>Lessons</h1>
+          <p className="lesson-subtitle">Create your own teaching board, with or without a PDF. Your projects stay in this browser.</p>
+        </div>
+        <label className="lesson-create-label">Lesson title
+          <input aria-label="New lesson title" maxLength={200} value={newTitle}
+            placeholder="e.g. P6 Mathematics — Fractions"
+            onChange={event=>setNewTitle(event.target.value)}/>
+        </label>
+        <Button variant="primary" onClick={create}>New lesson</Button>
       </div>
       {actionError && <ErrorBanner message={actionError} />}
       {state.status === 'loading' && <p role="status">Loading lessons…</p>}
@@ -47,7 +54,7 @@ export function Home() {
       {state.status === 'ready' && state.value.length === 0 && (
         <EmptyState
           title="No lessons yet"
-          description="Create a lesson, then pick a PDF to start teaching on the board."
+          description="Create a lesson, type your own board notes, or select text and diagrams from a PDF."
         />
       )}
       {state.status === 'ready' && state.value.length > 0 && (

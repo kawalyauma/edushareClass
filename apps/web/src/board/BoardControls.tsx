@@ -1,16 +1,46 @@
 import {useState} from 'react';
+import type {RefObject} from 'react';
 import type {BoardStudio} from './useBoardStudio';
 import {lastActionEnd} from './useBoardStudio';
 import {isSupportedMath} from '@edushare/math-notation';
 import {RecordingControls} from '../recording/RecordingControls';
 import type {LessonRecording} from '../recording/useLessonRecording';
-export function BoardControls({studio,recording}: {studio:BoardStudio;recording:LessonRecording}){
+export function BoardControls({studio,recording,boardCanvas}: {
+  studio:BoardStudio;recording:LessonRecording;boardCanvas:RefObject<HTMLCanvasElement|null>
+}){
   const [selectionId,setSelectionId]=useState('');
   const [notice,setNotice]=useState<string|null>(null);
+  const [typedText,setTypedText]=useState('');
+  const [titleDraft,setTitleDraft]=useState(studio.lesson.title);
+  const savePng=()=>{
+    const canvas=boardCanvas.current;
+    if(!canvas){setNotice('Teaching board canvas is not ready.');return;}
+    canvas.toBlob(blob=>{
+      if(!blob){setNotice('The browser could not create a board PNG.');return;}
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement('a');
+      a.href=url;
+      a.download=(studio.lesson.title.replace(/[^a-z0-9_-]+/gi,'-').slice(0,64)||'teaching-board')+'.png';
+      document.body.appendChild(a);a.click();a.remove();
+      window.setTimeout(()=>URL.revokeObjectURL(url),1000);
+      setNotice('Board image downloaded at 1920 × 1080 resolution.');
+    },'image/png');
+  };
   const selected=studio.lesson.selections.find(s=>s.id===selectionId)??studio.lesson.selections.at(-1);
   const currentIndex=Math.max(0,studio.liveBoard.pages.findIndex(p=>p.id===studio.currentPageId));
   const run=(p:Promise<unknown>)=>{void p.then(()=>setNotice('Saved locally.')).catch(e=>setNotice(e instanceof Error?e.message:String(e)));};
   return <div className="board-controls" aria-label="Teacher board controls">
+    <fieldset><legend>Lesson details</legend>
+      <label>Lesson title <input aria-label="Edit lesson title" maxLength={200}
+        value={titleDraft} onChange={e=>setTitleDraft(e.target.value)}/></label>
+      <div className="board-control-row">
+        <button className="btn" type="button"
+          disabled={!titleDraft.trim()||titleDraft.trim()===studio.lesson.title||studio.working}
+          onClick={()=>run(studio.updateLesson(l=>({...l,title:titleDraft.trim()})))}>Save title</button>
+        <button className="btn" type="button" onClick={savePng}>Download current board PNG</button>
+      </div>
+      <p className="board-note">Download captures only the current teaching board frame, not the PDF or controls.</p>
+    </fieldset>
     <fieldset><legend>Board pages</legend>
       <div className="board-control-row">
         <button className="btn" type="button" disabled={currentIndex===0} onClick={()=>run(studio.showPage(studio.liveBoard.pages[currentIndex-1]!.id))}>Previous</button>
@@ -31,6 +61,18 @@ export function BoardControls({studio,recording}: {studio:BoardStudio;recording:
       <label>Appearance <select aria-label="Stroke appearance" value={studio.style} onChange={e=>studio.setStyle(e.target.value as 'ink'|'chalk')}><option value="chalk">Chalk</option><option value="ink">Ink</option></select></label>
       <label>Board colour <select aria-label="Board colour" value={studio.liveBoard.theme} onChange={e=>run(studio.changeTheme(e.target.value as 'green'|'black'|'white'))}><option value="green">Green</option><option value="black">Black</option><option value="white">White</option></select></label>
       <button className="btn" type="button" onClick={()=>{if(window.confirm('Clear everything on this page? You can undo this action.'))run(studio.clear());}}>Clear current page</button>
+    </fieldset>
+    <fieldset><legend>Write your own text</legend>
+      <label htmlFor="teacher-board-text">Type a heading, explanation or question to animate as handwriting. No PDF needed.</label>
+      <textarea id="teacher-board-text" aria-label="Text to handwrite" rows={3} maxLength={300}
+        value={typedText} onChange={e=>setTypedText(e.target.value)}
+        placeholder="Today we are learning about fractions" />
+      <div className="board-control-row">
+        <button className="btn" type="button" disabled={!typedText.trim()||studio.working}
+          onClick={()=>run(studio.placeTypedText(typedText).then(()=>setTypedText('')))}>Write my text on board</button>
+        <span className="board-note">{typedText.length}/300</span>
+      </div>
+      <p className="board-note">Your typed notes are saved as teacher-authored content, separately from original PDF selections. Unsupported handwriting symbols are reported, not silently changed.</p>
     </fieldset>
     <fieldset><legend>Send PDF selection to board</legend>
       <label>Selected source

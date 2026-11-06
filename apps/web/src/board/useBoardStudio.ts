@@ -124,6 +124,39 @@ export function useBoardStudio(external:Lesson,saveLesson:(lesson:Lesson)=>Promi
     });
     if(interval){const x=interval as {start:number;end:number};startPlayback(x.start,x.end);}else showAll();
   },[commit,colour,width,speed,startPlayback,showAll,makeAction]);
+  /** Teacher-entered text is never mislabelled as copied PDF content. */
+  const placeTypedText=useCallback(async(raw:string)=>{
+    const text=raw.trim();
+    if(!text)throw new Error('Enter some text to write on the board.');
+    if(text.length>300)throw new Error('Write at most 300 characters at once.');
+    let interval:{start:number;end:number}|null=null;
+    await commit(l=>{
+      const {next,pageId}=ensurePage(l,makeAction);
+      const pageState=replay(next).pages.find(p=>p.id===pageId);
+      const bottom=Math.max(35,...(pageState?.content.map(c=>c.target.y+c.target.height)??[]));
+      const y=Math.max(90,bottom+38);
+      const plan=planHandwriting({text,x:95,y,maxWidth:1730,emSize:58,
+        strokeWidth:width,color:colour,speed});
+      if(plan.unsupported.length)throw new Error('Unsupported handwritten characters: '+
+        plan.unsupported.map(x=>x.char).join(' ')+'. Use the pen tool or select an original PDF crop.');
+      if(!plan.strokes.length)throw new Error('This text did not produce any handwriting strokes.');
+      const target:Rect={x:90,y,width:1740,height:Math.ceil(plan.height+28)};
+      if(target.y+target.height>1020)throw new Error('This board page is full. Add a new page first.');
+      const noteId=newId();
+      const place=makeAction(next,'content.place',{pageId,selectionId:noteId,target,mode:'handwriting'});
+      const actions:BoardAction[]=[...next.actions,place];
+      const first=logicalTime(actions);
+      for(const st of plan.strokes){
+        actions.push({id:newId(),type:'stroke.write',t:first+st.startMs,pageId,contentId:place.id,
+          stroke:{points:st.points,width:st.width,color:st.color,durationMs:st.durationMs}});
+      }
+      interval={start:place.t,end:first+plan.endMs};
+      return {...next,teacherNotes:[...(next.teacherNotes??[]),
+        {id:noteId,text,createdAt:new Date().toISOString()}],actions};
+    });
+    if(interval){const times=interval as {start:number;end:number};startPlayback(times.start,times.end);}else showAll();
+  },[commit,makeAction,width,colour,speed,startPlayback,showAll]);
+
   const draw=useCallback(async(stroke:Stroke)=>{
     await commit(l=>{const {next,pageId}=ensurePage(l,makeAction);return {...next,actions:[...next.actions,makeAction(next,'ink.draw',{pageId,stroke})]};});showAll();
   },[commit,showAll,makeAction]);
@@ -165,6 +198,6 @@ export function useBoardStudio(external:Lesson,saveLesson:(lesson:Lesson)=>Promi
   },[commit]);
   return {lesson,board,liveBoard,page,currentPageId,setRecordingClock,upsertSegment,error,working,tool,setTool,colour,setColour,width,setWidth,
     speed,setSpeed,style,setStyle,playhead,isPlaying,pause,resume,showAll,startPlayback,
-    newPage,showPage,placeSelection,draw,erase,clear,move,remove,changeTheme,undo,redo,history,seek,updateLesson};
+    newPage,showPage,placeSelection,placeTypedText,draw,erase,clear,move,remove,changeTheme,undo,redo,history,seek,updateLesson};
 }
 export type BoardStudio=ReturnType<typeof useBoardStudio>;

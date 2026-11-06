@@ -216,3 +216,17 @@
 .cloud-sync label{display:block;margin:.65rem 0;max-width:100%}
 .cloud-sync input[type=email],.cloud-sync input[type=password],.cloud-sync input[type=url]{display:block;width:100%;max-width:36rem}
 .cloud-sync fieldset{min-width:0}
+
+/* Public teacher improvements: readable creation and local-only authoring. */
+.lesson-create{display:flex;flex-wrap:wrap;align-items:end;gap:1rem;justify-content:space-between;margin-bottom:1.2rem;}
+.lesson-create h1{margin:0;}
+.lesson-subtitle{max-width:35rem;font-size:.92rem;color:var(--color-text-muted);line-height:1.45;}
+.lesson-create-label{display:grid;gap:.35rem;min-width:min(100%,17rem);font-size:.85rem;font-weight:650;}
+.lesson-create-label input,.board-controls input[type=text],.board-controls textarea{
+  background:var(--color-surface);color:var(--color-text);border:1px solid var(--color-border);
+  border-radius:var(--radius);padding:.55rem .65rem;font:inherit;max-width:100%;min-width:0;
+}
+.board-controls textarea{width:100%;resize:vertical;min-height:5rem;}
+.board-controls input[aria-label="Edit lesson title"]{width:100%;}
+.board-controls label:has(input[aria-label="Edit lesson title"]){display:grid;gap:.4rem;}
+@media(max-width:680px){.lesson-create{display:grid;align-items:stretch;}.lesson-create-label{min-width:0;}}

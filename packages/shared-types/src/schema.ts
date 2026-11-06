@@ -60,6 +60,14 @@ export const SourceSelectionSchema = z.object({
 });
 export type SourceSelection = z.infer<typeof SourceSelectionSchema>;
 
+/** Original teacher-authored notes, explicitly distinct from PDF source selections. */
+export const TeacherNoteSchema = z.object({
+  id,
+  text: z.string().trim().min(1).max(300),
+  createdAt: isoDate,
+});
+export type TeacherNote = z.infer<typeof TeacherNoteSchema>;
+
 // ---- Board (event-sourced) ----
 
 export const StrokeSchema = z.object({
@@ -146,6 +154,7 @@ export const LessonSchema = z
     updatedAt: isoDate,
     sources: z.array(PdfSourceSchema),
     selections: z.array(SourceSelectionSchema),
+    teacherNotes: z.array(TeacherNoteSchema).optional(),
     pages: z.array(BoardPageSchema),
     actions: z.array(BoardActionSchema),
     segments: z.array(RecordingSegmentSchema),
@@ -155,6 +164,7 @@ export const LessonSchema = z
   .superRefine((lesson, ctx) => {
     const sources = new Map(lesson.sources.map((s) => [s.id, s]));
     const selections = new Set(lesson.selections.map((s) => s.id));
+    const teacherNotes = new Set((lesson.teacherNotes ?? []).map((note) => note.id));
     const pages = new Set(lesson.pages.map((p) => p.id));
     const issue = (path: (string | number)[], message: string) =>
       ctx.addIssue({ code: 'custom', path, message });
@@ -174,7 +184,7 @@ export const LessonSchema = z
       seen.add(a.id);
       if ('pageId' in a && a.type !== 'page.add' && !pages.has(a.pageId))
         issue(['actions', i, 'pageId'], `unknown page "${a.pageId}"`);
-      if (a.type === 'content.place' && !selections.has(a.selectionId))
+      if (a.type === 'content.place' && !selections.has(a.selectionId) && !teacherNotes.has(a.selectionId))
         issue(['actions', i, 'selectionId'], `unknown selection "${a.selectionId}"`);
       if ((a.type === 'history.undo' || a.type === 'history.redo') && !seen.has(a.targetActionId))
         issue(['actions', i, 'targetActionId'], 'history target must be an earlier action');

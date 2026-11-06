@@ -75,7 +75,7 @@ function OpenedLesson({lesson,saveLesson}: {lesson:Lesson;saveLesson:(next:Lesso
     <StudioShell
       source={<PdfReader lesson={studio.lesson} saveLesson={saveLesson}/>}
       board={<BoardCanvas studio={studio} captureRef={boardCanvas}/>}
-      controls={<><BoardControls studio={studio} recording={recording}/><TimelineEditor studio={studio} recording={recording}/><ExportControls studio={studio}/><CloudSyncPanel studio={studio}/></>}
+      controls={<><BoardControls studio={studio} recording={recording} boardCanvas={boardCanvas}/><TimelineEditor studio={studio} recording={recording}/><ExportControls studio={studio}/><CloudSyncPanel studio={studio}/></>}
     />
   </>;
 }
