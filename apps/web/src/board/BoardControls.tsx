@@ -1,4 +1,5 @@
 import {useState} from 'react';
+import {useNavigate} from 'react-router-dom';
 import type {RefObject} from 'react';
 import type {BoardStudio} from './useBoardStudio';
 import {lastActionEnd} from './useBoardStudio';
@@ -8,7 +9,9 @@ import type {LessonRecording} from '../recording/useLessonRecording';
 export function BoardControls({studio,recording,boardCanvas}: {
   studio:BoardStudio;recording:LessonRecording;boardCanvas:RefObject<HTMLCanvasElement|null>
 }){
+  const navigate=useNavigate();
   const [selectionId,setSelectionId]=useState('');
+  const [chalkColumns,setChalkColumns]=useState<1|2|3>(2);
   const [notice,setNotice]=useState<string|null>(null);
   const [typedText,setTypedText]=useState('');
   const [titleDraft,setTitleDraft]=useState(studio.lesson.title);
@@ -73,6 +76,24 @@ export function BoardControls({studio,recording,boardCanvas}: {
         <span className="board-note">{typedText.length}/300</span>
       </div>
       <p className="board-note">Your typed notes are saved as teacher-authored content, separately from original PDF selections. Unsupported handwriting symbols are reported, not silently changed.</p>
+    </fieldset>
+    <fieldset className="chalk-section-fieldset"><legend>PDF section → classroom chalkboard</legend>
+      <p className="board-note">1. Open Source PDF, choose <strong>Drag over a complete PDF section</strong> and draw a box around the notes.</p>
+      <p className="board-note">2. Compare the captured text with its original PDF crop. Any teacher correction stays separate from the source.</p>
+      <label>Chalkboard columns
+        <select aria-label="Chalkboard columns" value={chalkColumns}
+          onChange={e=>setChalkColumns(Number(e.target.value) as 1|2|3)}>
+          <option value={1}>1 — large teaching notes</option>
+          <option value={2}>2 — class explanations</option>
+          <option value={3}>3 — marking guide and revision</option>
+        </select>
+      </label>
+      <button type="button" className="btn" data-variant="primary"
+        disabled={!studio.lesson.selections.length||studio.working||!selected?.text}
+        onClick={()=>{if(selected)run(studio.writePdfChalkSection(selected,chalkColumns).then(()=>{navigate({search:'?panel=board'},{replace:true});}));}}>
+        Write selected PDF section as chalk notes
+      </button>
+      <p className="board-note">New green chalkboards, realistic wood frame, white/yellow original handwritten strokes and automatic page breaks. Formula symbols that cannot be drawn are rejected, not changed.</p>
     </fieldset>
     <fieldset><legend>Send PDF selection to board</legend>
       <label>Selected source
