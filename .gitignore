@@ -9,3 +9,13 @@ coverage
 coordination/claims.json
 coordination/claims.json.lock
 coordination/*.tmp
+
+# Phase 09 privacy: never commit authentic school accounts, PDFs or voice recordings.
+!.env.example
+private-data/
+*.db
+*.sqlite
+*.sqlite3
+__pycache__/
+*.pyc
+.pytest_cache/

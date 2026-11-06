@@ -41,3 +41,11 @@ See [Phase 02 acceptance checkpoint](docs/phase-02-acceptance.md).
 - `packages/recording-core` + `apps/web/src/recording` — explicit teacher microphone access, board-only browser video and progressive local recovery chunks. See `docs/phase-06-acceptance.md`.
 
 These features are **not production-approved** until the browser, device and synchronisation acceptance checks pass. MP4 export is scheduled for Phase 08, not guaranteed by MediaRecorder.
+
+## Phase 07–09 engineering (stacked review work)
+
+- **Phase 07** `packages/timeline-editor` + `apps/web/src/timeline`: clip timeline, non-destructive trim/reorder, undo/redo, source-time/board replay mapping and local video scrubber. See `docs/phase-07-acceptance.md`.
+- **Phase 08** `packages/export-core` + `apps/web/src/export`: local editor-to-video export in a browser-supported container, optional teacher caption and metadata manifest. A no-network FFmpeg worker can produce verified H.264/AAC 1080p MP4 from locally downloaded segment source media: `scripts/export_mp4.py`. See `docs/phase-08-acceptance.md`.
+- **Phase 09** optional FastAPI service at `apps/api`, PostgreSQL/Alembic schema, teacher login and school roles, private PDF/media storage, optimistic versioned lesson metadata, resumable quota-checked uploads and school-admin courses. Browser cloud panel is **off by default** and never silently transfers voice, lesson videos or PDFs. See `apps/api/README.md` and `docs/phase-09-acceptance.md`.
+
+All three are **review-stage**, not an approved production release. Upstream Phase 06 is still a draft PR; do not merge stacked branches to `main` or enable school cloud accounts until the relevant npm/browser/security and acceptance gates pass. The repository's existing claim coordinator is Phase-01-only; these deliverables were authored without launching 10 concurrent provider agents.
