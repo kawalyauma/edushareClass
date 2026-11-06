@@ -96,6 +96,14 @@ export const BoardActionSchema = z.discriminatedUnion('type', [
   }),
   z.object({ ...base, type: z.literal('board.clear'), pageId: id }),
   z.object({ ...base, type: z.literal('pace.set'), speed: z.number().min(0.25).max(4) }),
+  // Phase 04: reversible, event-sourced board controls. Never mutate stored source selections.
+  z.object({ ...base, type: z.literal('ink.draw'), pageId: id, stroke: StrokeSchema }),
+  z.object({ ...base, type: z.literal('ink.erase'), pageId: id, strokeIds: z.array(id).min(1) }),
+  z.object({ ...base, type: z.literal('content.move'), pageId: id, contentId: id, target: RectSchema }),
+  z.object({ ...base, type: z.literal('content.remove'), pageId: id, contentId: id }),
+  z.object({ ...base, type: z.literal('board.theme.set'), theme: z.enum(['green', 'black', 'white']) }),
+  z.object({ ...base, type: z.literal('history.undo'), targetActionId: id }),
+  z.object({ ...base, type: z.literal('history.redo'), targetActionId: id }),
 ]);
 export type BoardAction = z.infer<typeof BoardActionSchema>;
 export type BoardActionType = BoardAction['type'];
@@ -155,6 +163,8 @@ export const LessonSchema = z
         issue(['actions', i, 'pageId'], `unknown page "${a.pageId}"`);
       if (a.type === 'content.place' && !selections.has(a.selectionId))
         issue(['actions', i, 'selectionId'], `unknown selection "${a.selectionId}"`);
+      if ((a.type === 'history.undo' || a.type === 'history.redo') && !seen.has(a.targetActionId))
+        issue(['actions', i, 'targetActionId'], 'history target must be an earlier action');
     });
     lesson.segments.forEach((s, i) => {
       if (s.endMs !== undefined && s.endMs < s.startMs)
