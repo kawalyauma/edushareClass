@@ -4,6 +4,7 @@ export function RecordingControls({recording}: {recording:LessonRecording}){
  const busy=recording.phase!=='idle';
  const run=(promise:Promise<unknown>)=>{void promise.catch(()=>{});};
  return <fieldset className="recording-controls"><legend>Teacher voice + board recording</legend>
+  <p className="board-note">For prepared chalkboards, use the large <strong>Play writing</strong> and <strong>Pause writing</strong> buttons above the board. Those do not mute or pause your voice.</p>
   <p className="board-note">Only the 1920×1080 teaching board is captured. Your own microphone is the only voice source; PDF sidebar, tools and webcam are excluded.</p>
   <label>Microphone
    <select aria-label="Microphone input device" value={recording.deviceId} disabled={busy} onChange={e=>recording.setDeviceId(e.target.value)}>
@@ -13,8 +14,8 @@ export function RecordingControls({recording}: {recording:LessonRecording}){
   </label>
   <div className="board-control-row">
    <button className="btn" type="button" disabled={busy} onClick={()=>run(recording.start())}>Start recording</button>
-   <button className="btn" type="button" disabled={recording.phase!=='recording'} onClick={recording.pause}>Pause</button>
-   <button className="btn" type="button" disabled={recording.phase!=='paused'} onClick={recording.resume}>Resume</button>
+   <button className="btn" type="button" disabled={recording.phase!=='recording'} onClick={recording.pause}>Pause recording</button>
+   <button className="btn" type="button" disabled={recording.phase!=='paused'} onClick={recording.resume}>Resume recording</button>
    <button className="btn" type="button" disabled={!['recording','paused'].includes(recording.phase)} onClick={()=>run(recording.stop())}>Stop &amp; save</button>
    <button className="btn" type="button" disabled={!['recording','paused'].includes(recording.phase)} onClick={recording.toggleMute}>{recording.muted?'Unmute':'Mute'} mic</button>
   </div>

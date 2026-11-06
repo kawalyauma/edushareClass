@@ -238,3 +238,41 @@
 .chalk-section-fieldset .board-note{color:#2e5848;}
 .chalk-section-fieldset button[data-variant='primary']{background:#1d563e;color:#fff;border-color:#1d563e;font-weight:700;min-height:2.6rem;}
 .pdf-modes input[type=radio]{accent-color:#1d6847;}
+
+/* Chalkboard storyboard review and teacher-first transport. */
+.chalk-draft-gallery{display:grid;gap:.7rem;padding:.5rem 0;}
+.chalk-draft-heading{display:grid;gap:.15rem;}
+.chalk-draft-heading strong{font-size:.88rem;}
+.chalk-draft-heading small{font-size:.76rem;line-height:1.45;}
+.chalk-draft-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(175px,1fr));gap:.65rem;}
+.chalk-draft-tile{display:grid;gap:.35rem;text-align:left;cursor:zoom-in;background:#fff;border:2px solid #9bab9e;border-radius:7px;padding:.3rem;color:#22362d;max-width:100%;min-width:0;font:inherit;}
+.chalk-draft-tile:hover,.chalk-draft-tile:focus-visible{outline:3px solid #b38b37;outline-offset:1px;}
+.chalk-draft-tile span{font-size:.72rem;padding:0 .2rem .2rem;}
+.chalk-draft-canvas{display:block;max-width:100%;width:100%;height:auto;aspect-ratio:16/9;}
+.chalk-draft-modal-shade{position:fixed;inset:0;background:rgba(8,17,13,.89);z-index:100;display:grid;place-items:center;padding:1rem;}
+.chalk-draft-modal{display:grid;gap:.7rem;max-width:min(96vw,1500px);max-height:92dvh;overflow:auto;background:#f3f2e9;color:#213628;padding:1rem;border-radius:12px;box-shadow:0 18px 70px #0009;}
+.chalk-draft-modal-bar{display:flex;justify-content:space-between;align-items:center;gap:1rem;}
+.chalk-draft-canvas-large{width:100%;max-height:calc(80dvh - 110px);object-fit:contain;}
+.chalk-approved{background:#d9f5df;border-left:4px solid #267b48;padding:.65rem;border-radius:4px;color:#15432b;font-size:.8rem;}
+.chalk-transport{display:grid;gap:.55rem;background:linear-gradient(130deg,#f7f6ed,#e5f1e8);border:1px solid #8baf98;border-radius:9px;padding:1rem;margin-bottom:.7rem;color:#193e2c;}
+.chalk-transport-heading{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.45rem;}
+.chalk-transport-heading strong{font-size:.95rem;}
+.chalk-ready,.chalk-live{font-size:.71rem;font-weight:750;text-transform:uppercase;letter-spacing:.05em;padding:.25rem .45rem;border-radius:4px;background:#d6e6d9;color:#23472f;}
+.chalk-live{background:#b71c1c;color:white;}
+.chalk-transport p{font-size:.79rem;margin:0;line-height:1.45;}
+.chalk-transport-actions{display:flex;gap:.48rem;flex-wrap:wrap;}
+.chalk-transport-actions .btn{font-weight:650;min-height:2.5rem;}
+.chalk-transport-actions [data-variant='primary']{background:#ad2222;color:white;border-color:#9b1717;}
+.chalk-transport-actions .chalk-play{background:#166642;border-color:#14583b;color:white;}
+.chalk-transport-actions .chalk-pause{background:#ead17d;border-color:#a18b48;color:#332a0b;}
+.chalk-writing-meter{display:grid;grid-template-columns:minmax(100px,auto) 1fr;align-items:center;gap:.6rem;font-size:.75rem;}
+.chalk-writing-meter progress{width:100%;accent-color:#21754d;}
+.chalk-transport-explain{font-size:.75rem!important;color:#2d5541;}
+@media(max-width:560px){.chalk-transport{padding:.65rem}.chalk-transport-actions .btn{flex:1 0 42%;font-size:.8rem}.chalk-writing-meter{grid-template-columns:1fr}}
+
+/* Studio video brand export controls. */
+.video-branding-options{display:grid;gap:.55rem;border:1px solid #a8bea4;border-radius:9px;padding:1rem;background:linear-gradient(145deg,#f6f7ee,#e3f1e7);color:#173d2b;}
+.video-branding-options legend{font-size:.91rem;font-weight:700;}
+.video-branding-options label{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;}
+.video-branding-options input[type=text]{flex:1;min-width:min(100%,13rem);padding:.45rem;border-radius:5px;border:1px solid #8aa995;}
+.video-branding-options input[type=checkbox]{width:1.2rem;height:1.2rem;accent-color:#165b3c;}

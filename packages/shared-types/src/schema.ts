@@ -146,6 +146,18 @@ export const TimelineHistorySchema = z.object({
   past:z.array(TimelineEditSchema).max(25), future:z.array(TimelineEditSchema).max(25),
 });
 
+/** Teacher-approved source-faithful chalkboard script. Stored so recording can be cued again. */
+export const ChalkTakeSchema = z.object({
+  id,
+  selectionId:id,
+  columns:z.union([z.literal(1),z.literal(2),z.literal(3)]),
+  pageIds:z.array(id).min(1).max(8),
+  startMs:ms,
+  endMs:ms,
+  approvedAt:isoDate,
+}).refine(v=>v.endMs>v.startMs,{message:'Writing must have positive duration'});
+export type ChalkTake=z.infer<typeof ChalkTakeSchema>;
+
 // ---- Lesson ----
 
 export const LessonSchema = z
@@ -158,6 +170,7 @@ export const LessonSchema = z
     sources: z.array(PdfSourceSchema),
     selections: z.array(SourceSelectionSchema),
     teacherNotes: z.array(TeacherNoteSchema).optional(),
+    chalkTake: ChalkTakeSchema.optional(),
     pages: z.array(BoardPageSchema),
     actions: z.array(BoardActionSchema),
     segments: z.array(RecordingSegmentSchema),
@@ -171,6 +184,13 @@ export const LessonSchema = z
     const pages = new Set(lesson.pages.map((p) => p.id));
     const issue = (path: (string | number)[], message: string) =>
       ctx.addIssue({ code: 'custom', path, message });
+
+    if(lesson.chalkTake){
+      if(!selections.has(lesson.chalkTake.selectionId))
+        issue(['chalkTake','selectionId'],'approved storyboard must reference a PDF selection');
+      if(lesson.chalkTake.pageIds.some(pageId=>!pages.has(pageId)))
+        issue(['chalkTake','pageIds'],'approved storyboard pages must exist in the lesson');
+    }
 
     lesson.selections.forEach((sel, i) => {
       const src = sources.get(sel.sourceId);

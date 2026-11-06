@@ -6,7 +6,7 @@ import {openPdf} from './pdfjs';
 import {PdfPage} from './PdfPage';
 import {LocalPdfAssets,checkedPdfBytes,sha256} from './sourceAssets';
 
-interface Props {lesson:Lesson;saveLesson:(next:Lesson)=>Promise<void>}
+interface Props {lesson:Lesson;saveLesson:(next:Lesson)=>Promise<void>;onSelectionCreated?:(selection:SourceSelection)=>void}
 const MODE_LABEL={text:'Select a PDF text line',section:'Drag over a complete PDF section',crop:'Select an image or scanned diagram'} as const;
 
 function SelectionPreview({selection,assets,onCorrect}: {selection:SourceSelection|undefined;assets:LocalPdfAssets;onCorrect:(text:string)=>Promise<void>}){
@@ -42,7 +42,7 @@ function SelectionPreview({selection,assets,onCorrect}: {selection:SourceSelecti
   </div>;
 }
 
-export function PdfReader({lesson,saveLesson}:Props){
+export function PdfReader({lesson,saveLesson,onSelectionCreated}:Props){
   const assets=useMemo(()=>new LocalPdfAssets(),[]);
   const lessonRef=useRef(lesson);lessonRef.current=lesson;
   const [sourceId,setSourceId]=useState(lesson.sources.at(-1)?.id??'');
@@ -105,9 +105,10 @@ export function PdfReader({lesson,saveLesson}:Props){
     try{
       await saveLesson({...lessonRef.current,selections:[...lessonRef.current.selections,selection]});
       setLastSelectionId(selection.id);
+      onSelectionCreated?.(selection);
     }catch(e){setError(e instanceof Error?e.message:String(e));throw e;}
     finally{setSaving(false);}
-  },[saveLesson]);
+  },[saveLesson,onSelectionCreated]);
   const onCorrect=async(displayText:string)=>{
     const id=currentSelection?.id;if(!id)return;
     await saveLesson({...lessonRef.current,selections:lessonRef.current.selections.map(s=>s.id===id?{...s,displayText}:s)});

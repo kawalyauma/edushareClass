@@ -165,6 +165,8 @@ export function useBoardStudio(external:Lesson,saveLesson:(lesson:Lesson)=>Promi
     if(!text)throw new Error('Select a PDF section with extractable text. Scanned pages need the original image crop.');
     const layout=planChalkSection(text,columns,speed,latest.current.title);
     let firstTime=0,lastTime=0;
+    let firstPageId='';
+    const pageIds:string[]=[];
     await commit(l=>{
       let next:Lesson={...l,pages:[...l.pages],actions:[...l.actions]};
       if(replay(next).theme==='white'){
@@ -172,6 +174,8 @@ export function useBoardStudio(external:Lesson,saveLesson:(lesson:Lesson)=>Promi
       }
       for(const sheet of layout.pages){
         const pageId=newId();
+        if(!firstPageId)firstPageId=pageId;
+        pageIds.push(pageId);
         const created=makeAction(next,'page.add',{pageId});
         next.pages.push({id:pageId,index:next.pages.length,chalkColumns:sheet.columns});
         next.actions.push(created);
@@ -196,12 +200,34 @@ export function useBoardStudio(external:Lesson,saveLesson:(lesson:Lesson)=>Promi
           lastTime=Math.max(lastTime,start+row.plan.endMs);
         }
       }
+      if(!firstTime||!lastTime||!firstPageId)throw new Error('The chalkboard script has no drawable content.');
+      next.chalkTake={
+        id:newId(),selectionId:selection.id,columns,pageIds:[...pageIds],
+        startMs:firstTime+1,endMs:lastTime,approvedAt:new Date().toISOString(),
+      };
       return next;
     });
-    if(lastTime>firstTime)startPlayback(firstTime,lastTime);
-    else showAll();
+    // Approval is preparation, NOT a recording or a playback action.
+    // Put the first approved board on screen with no strokes drawn.
+    seek(firstTime+1);
     return layout.pages.length;
-  },[commit,makeAction,speed,startPlayback,showAll]);
+  },[commit,makeAction,speed,seek]);
+  /** Rewind the approved storyboard to its blank first board, ready for the microphone. */
+  const cueChalkTake=useCallback(()=>{
+    const script=latest.current.chalkTake;
+    if(!script)throw new Error('Preview and approve a PDF chalkboard script first.');
+    seek(script.startMs);
+  },[seek]);
+  /** These controls stop/start WRITING. They do not pause the teacher microphone. */
+  const playChalkTake=useCallback(()=>{
+    const script=latest.current.chalkTake;
+    if(!script)throw new Error('Preview and approve a PDF chalkboard script first.');
+    if(isPlaying)return;
+    const at=Number.isFinite(playhead)&&playhead>=script.startMs&&playhead<script.endMs
+      ?playhead:script.startMs;
+    startPlayback(at,script.endMs);
+  },[isPlaying,playhead,startPlayback]);
+
   const draw=useCallback(async(stroke:Stroke)=>{
     await commit(l=>{const {next,pageId}=ensurePage(l,makeAction);return {...next,actions:[...next.actions,makeAction(next,'ink.draw',{pageId,stroke})]};});showAll();
   },[commit,showAll,makeAction]);
@@ -243,6 +269,7 @@ export function useBoardStudio(external:Lesson,saveLesson:(lesson:Lesson)=>Promi
   },[commit]);
   return {lesson,board,liveBoard,page,currentPageId,setRecordingClock,upsertSegment,error,working,tool,setTool,colour,setColour,width,setWidth,
     speed,setSpeed,style,setStyle,playhead,isPlaying,pause,resume,showAll,startPlayback,
-    newPage,showPage,placeSelection,placeTypedText,writePdfChalkSection,draw,erase,clear,move,remove,changeTheme,undo,redo,history,seek,updateLesson};
+    newPage,showPage,placeSelection,placeTypedText,writePdfChalkSection,
+    cueChalkTake,playChalkTake,draw,erase,clear,move,remove,changeTheme,undo,redo,history,seek,updateLesson};
 }
 export type BoardStudio=ReturnType<typeof useBoardStudio>;

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Lesson } from '@edushare/shared-types';
 import { PdfReader } from '../pdf/PdfReader';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { StudioShell } from '../shell/StudioShell';
 import { useStorage } from '../storage/context';
 import { EmptyState, ErrorBanner } from '../ui';
@@ -12,6 +12,7 @@ import {useLessonRecording} from '../recording/useLessonRecording';
 import {TimelineEditor} from '../timeline/TimelineEditor';
 import {ExportControls} from '../export/ExportControls';
 import {CloudSyncPanel} from '../cloud/CloudSyncPanel';
+import {ChalkTransport} from '../chalkboard/ChalkTransport';
 import { useAsync } from '../useAsync';
 
 export function LessonWorkspace() {
@@ -68,14 +69,21 @@ export function LessonWorkspace() {
 /** Only mount the board controller after IndexedDB has loaded a valid lesson. */
 function OpenedLesson({lesson,saveLesson}: {lesson:Lesson;saveLesson:(next:Lesson)=>Promise<void>}) {
   const studio=useBoardStudio(lesson,saveLesson);
+  const navigate=useNavigate();
+  const [selectedPdfId,setSelectedPdfId]=useState('');
+
   const boardCanvas=useRef<HTMLCanvasElement|null>(null);
   const recording=useLessonRecording(studio,boardCanvas);
   return <>
     <h1 className="skip-link">{lesson.title}</h1>
     <StudioShell
-      source={<PdfReader lesson={studio.lesson} saveLesson={saveLesson}/>}
-      board={<BoardCanvas studio={studio} captureRef={boardCanvas}/>}
-      controls={<><BoardControls studio={studio} recording={recording} boardCanvas={boardCanvas}/><TimelineEditor studio={studio} recording={recording}/><ExportControls studio={studio}/><CloudSyncPanel studio={studio}/></>}
+      source={<PdfReader lesson={studio.lesson} saveLesson={saveLesson}
+        onSelectionCreated={selection=>{
+          setSelectedPdfId(selection.id);
+          if(selection.text?.includes('\n'))navigate({search:'?panel=controls'},{replace:true});
+        }}/>}
+      board={<><ChalkTransport studio={studio} recording={recording}/><BoardCanvas studio={studio} captureRef={boardCanvas}/></>}
+      controls={<><BoardControls studio={studio} recording={recording} boardCanvas={boardCanvas} selectionId={selectedPdfId} onSelectionChange={setSelectedPdfId}/><TimelineEditor studio={studio} recording={recording}/><ExportControls studio={studio}/><CloudSyncPanel studio={studio}/></>}
     />
   </>;
 }

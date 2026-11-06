@@ -1,5 +1,7 @@
 import type {ExportPlan} from '@edushare/export-core';
 import {supportedRecorderMime} from '@edushare/recording-core';
+import {paintNotesUGVideoScene,videoBrandTiming} from './videoBranding';
+import type {NotesUGVideoBrand,VideoScene} from './videoBranding';
 
 export interface BrowserExportOptions {
   plan:ExportPlan;
@@ -7,6 +9,7 @@ export interface BrowserExportOptions {
   progress:(fraction:number)=>void;
   signal:AbortSignal;
   branding?:string;
+  videoBrand?:NotesUGVideoBrand;
 }
 export type BrowserExportResult={blob:Blob;mimeType:string};
 const failAbort=()=>new DOMException('Video export cancelled.','AbortError');
@@ -47,6 +50,12 @@ export async function exportLessonBrowser(options:BrowserExportOptions):Promise<
  const combined=new MediaStream([...surface.getVideoTracks(),...destination.stream.getAudioTracks()]);
  const recorder=new MediaRecorder(combined,{mimeType:mime,videoBitsPerSecond:5_000_000});
  const blobs:Blob[]=[];
+ const timing=videoBrandTiming(options.videoBrand);
+ const totalDuration=plan.durationMs+timing.introMs+timing.outroMs;
+ let scene:VideoScene=timing.introMs?'intro':'lesson';
+ let sceneElapsed=0;
+ const updateProgress=(elapsed:number)=>progress(Math.min(1,Math.max(0,elapsed/totalDuration)));
+
  let raf:number|null=null,recorderStarted=false;
  const urls:string[]=[];
  let failRecord:(cause:Error)=>void=()=>{};
@@ -63,17 +72,45 @@ export async function exportLessonBrowser(options:BrowserExportOptions):Promise<
      const w=source.videoWidth*scale,h=source.videoHeight*scale;
      ctx.drawImage(source,(plan.width-w)/2,(plan.height-h)/2,w,h);
    }
-   if(options.branding?.trim()){
-     ctx.fillStyle='rgba(0,0,0,.65)';ctx.fillRect(20,plan.height-90,Math.min(850,options.branding.length*23+48),62);
-     ctx.fillStyle='#ffffff';ctx.font='30px sans-serif';ctx.fillText(options.branding.slice(0,40),42,plan.height-49,800);
+   if(options.videoBrand?.enabled)paintNotesUGVideoScene(
+     ctx,plan.width,plan.height,scene,options.videoBrand,sceneElapsed
+   );
+   if(scene==='lesson'&&options.branding?.trim()){
+     const text=options.branding.trim().slice(0,40);
+     ctx.fillStyle='rgba(0,24,19,.77)';
+     ctx.fillRect(24,plan.height-107,Math.min(930,text.length*21+48),68);
+     ctx.fillStyle='#f2e8cd';ctx.font='bold 30px sans-serif';
+     ctx.fillText(text,47,plan.height-62,860);
    }
  };
  const loop=()=>{paint();raf=requestAnimationFrame(loop);};
+ const hold=async(ms:number,progressStartMs:number)=>{
+   if(ms<=0)return;
+   const started=performance.now();
+   await new Promise<void>((resolve,reject)=>{
+     let frame:number|null=null;
+     const cancel=()=>{if(frame!==null)cancelAnimationFrame(frame);
+       signal.removeEventListener('abort',cancel);
+       reject(failAbort());
+     };
+     const tick=()=>{
+       if(signal.aborted){cancel();return;}
+       sceneElapsed=Math.min(ms,performance.now()-started);
+       updateProgress(progressStartMs+sceneElapsed);
+       if(sceneElapsed>=ms){signal.removeEventListener('abort',cancel);resolve();return;}
+       frame=requestAnimationFrame(tick);
+     };
+     signal.addEventListener('abort',cancel,{once:true});tick();
+   });
+ };
+
  const cancel=()=>{source.pause();if(recorder.state!=='inactive')recorder.stop();};
  signal.addEventListener('abort',cancel,{once:true});
  try{
    if(audio.state==='suspended')await audio.resume();
    recorder.start(1000);recorderStarted=true;loop();
+   if(timing.introMs)await hold(timing.introMs,0);
+   scene='lesson';sceneElapsed=0;
    for(const clip of plan.clips){
      if(signal.aborted)throw failAbort();
      const url=URL.createObjectURL(assets.get(clip.segmentId)!);urls.push(url);
@@ -92,7 +129,7 @@ export async function exportLessonBrowser(options:BrowserExportOptions):Promise<
          if(signal.aborted){reject(failAbort());return;}
          const mediaMs=source.currentTime*1000;
          const portion=Math.min(1,Math.max(0,(mediaMs-clip.sourceInMs)/(clip.sourceOutMs-clip.sourceInMs)));
-         progress(Math.min(1,(clip.targetStartMs+portion*(clip.targetEndMs-clip.targetStartMs))/plan.durationMs));
+         updateProgress(timing.introMs+clip.targetStartMs+portion*(clip.targetEndMs-clip.targetStartMs));
          if(mediaMs+15>=clip.sourceOutMs){source.pause();resolve();return;}
          if(source.ended){reject(new Error('Source media ended before the selected trim completed.'));return;}
          // This only drives progress/completion; the rendering loop is separate.
@@ -103,7 +140,12 @@ export async function exportLessonBrowser(options:BrowserExportOptions):Promise<
        void frame;
      });
    }
-   source.pause();if(recorder.state!=='inactive')recorder.stop();
+   source.pause();
+   if(timing.outroMs){
+     scene='outro';sceneElapsed=0;
+     await hold(timing.outroMs,timing.introMs+plan.durationMs);
+   }
+   if(recorder.state!=='inactive')recorder.stop();
    await stopPromise;
    if(signal.aborted)throw failAbort();
    const blob=new Blob(blobs,{type:mime});
