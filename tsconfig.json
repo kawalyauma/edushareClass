@@ -23,6 +23,9 @@
       "path": "packages/timeline-editor"
     },
     {
+      "path": "packages/export-core"
+    },
+    {
       "path": "infrastructure/claim-coordinator"
     },
     {

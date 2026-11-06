@@ -19,7 +19,8 @@
     "@edushare/stroke-engine": "*",
     "@edushare/math-notation": "*",
     "@edushare/recording-core": "*",
-    "@edushare/timeline-editor": "*"
+    "@edushare/timeline-editor": "*",
+    "@edushare/export-core": "*"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^6.2.1",

@@ -38,6 +38,9 @@
     },
     {
       "path": "../../packages/timeline-editor"
+    },
+    {
+      "path": "../../packages/export-core"
     }
   ]
 }
