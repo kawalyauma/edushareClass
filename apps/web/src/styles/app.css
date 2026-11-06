@@ -1,38 +1,205 @@
-{
-  "files": [],
-  "references": [
-    {
-      "path": "packages/shared-types"
-    },
-    {
-      "path": "packages/lesson-format"
-    },
-    {
-      "path": "packages/pdf-selection"
-    },
-    {
-      "path": "packages/stroke-engine"
-    },
-    {
-      "path": "packages/math-notation"
-    },
-    {
-      "path": "packages/recording-core"
-    },
-    {
-      "path": "packages/timeline-editor"
-    },
-    {
-      "path": "infrastructure/claim-coordinator"
-    },
-    {
-      "path": "apps/web"
-    },
-    {
-      "path": "tests"
-    }
-  ]
+.btn {
+  font: inherit;
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+  cursor: pointer;
 }
+.btn[data-variant='primary'] {
+  background: var(--color-primary);
+  color: var(--color-primary-contrast);
+  border-color: var(--color-primary);
+}
+.btn[data-variant='danger'] {
+  color: var(--color-danger);
+  border-color: var(--color-danger);
+}
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.panel > h2 {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  font-size: 0.95rem;
+  background: var(--color-surface-alt);
+  border-bottom: 1px solid var(--color-border);
+}
+.panel-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: var(--space-4);
+}
+
+.empty-state {
+  text-align: center;
+  color: var(--color-text-muted);
+  padding: var(--space-6);
+}
+.empty-state h3 {
+  margin: 0 0 var(--space-2);
+  color: var(--color-text);
+}
+
+.error-banner {
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+  border: 1px solid var(--color-danger);
+  border-radius: var(--radius);
+  padding: var(--space-3) var(--space-4);
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  height: var(--shell-header-height);
+  padding: 0 var(--space-4);
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+}
+.app-header a {
+  color: var(--color-text);
+  font-weight: 600;
+  text-decoration: none;
+}
+.page {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: var(--space-6) var(--space-4);
+}
+.lesson-list {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: var(--space-3);
+}
+.lesson-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+}
+
+/* Three-panel studio shell: source | board | controls. Narrow screens show one panel at a time. */
+.studio {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  height: calc(100dvh - var(--shell-header-height));
+  gap: var(--space-3);
+  padding: var(--space-3);
+}
+.studio-tabs {
+  display: flex;
+  gap: var(--space-2);
+}
+.studio-tabs [aria-selected='true'] {
+  background: var(--color-primary);
+  color: var(--color-primary-contrast);
+}
+.studio-panels {
+  display: grid;
+  min-height: 0;
+  gap: var(--space-3);
+  grid-template-columns: minmax(0, 1fr);
+}
+.studio-slot {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.studio-slot[data-active='false'] {
+  display: none;
+}
+.board-surface {
+  aspect-ratio: 16 / 9;
+  width: 100%;
+  background: var(--color-board);
+  border-radius: var(--radius);
+  color: #cfe5db;
+  display: grid;
+  place-items: center;
+}
+
+@media (min-width: 1024px) {
+  .studio-tabs {
+    display: none;
+  }
+  .studio-panels {
+    grid-template-columns: minmax(240px, 1fr) minmax(0, 2fr) minmax(240px, 1fr);
+  }
+  .studio-slot[data-active='false'] {
+    display: flex;
+  }
+}
+
+/* Phase 02: the source reader sits entirely inside its StudioShell panel. */
+.pdf-reader { min-width:0; display:grid; gap:var(--space-3); }
+.pdf-tools { display:grid; gap:var(--space-2); min-width:0; }
+.pdf-tools label { display:flex; flex-wrap:wrap; gap:var(--space-2); align-items:center; }
+.pdf-upload-label input { max-width:100%; }
+.pdf-tools input[type='number'] { width:4.7em; padding:0.2rem; }
+.pdf-nav,.pdf-zoom { display:flex; flex-wrap:wrap; align-items:center; gap:var(--space-2); }
+.pdf-modes { display:flex; flex-direction:column; gap:var(--space-2); margin:0; padding:var(--space-2); border:1px solid var(--color-border); border-radius:var(--radius); }
+.pdf-modes label { cursor:pointer; }
+.pdf-scroll-window { height:min(58dvh,650px); min-height:280px; overflow:auto; min-width:0; border:1px solid var(--color-border); background:#e5e8eb; overscroll-behavior:contain; }
+.pdf-page-slot { display:flex; justify-content:center; align-items:flex-start; overflow:visible; }
+.pdf-page-section { display:grid; justify-items:center; gap:4px; min-width:0; padding:6px; }
+.pdf-page-label { font-size:0.8rem; color:#263747; text-align:center; }
+.pdf-flag { display:block; color:#8b3c1c; font-weight:600; }
+.pdf-page-canvas { position:relative; flex:none; background:white; box-shadow:0 1px 4px #0002; overflow:hidden; touch-action:pan-y; }
+.pdf-page-bitmap { display:block; max-width:none; }
+.pdf-text-layer { position:absolute; inset:0; pointer-events:none; }
+.pdf-line-target { position:absolute; cursor:pointer; pointer-events:auto; display:block; overflow:hidden; white-space:nowrap; color:transparent; user-select:text; font-size:12px; line-height:1; text-align:left; background:transparent; border:1px solid transparent; }
+.pdf-line-target:hover,.pdf-line-target:focus-visible { background:rgba(29,116,190,.15); border-color:#075ba6; outline:2px solid #075ba6; outline-offset:0; }
+.pdf-crop-hint { position:absolute; left:6px; top:6px; background:rgba(255,255,255,.88); padding:3px 5px; font-size:0.72rem; color:#184f77; pointer-events:none; }
+.pdf-crop-draft { position:absolute; background:#1774b633; border:2px dashed #0870ba; pointer-events:none; }
+.pdf-selection-section { min-width:0; border-top:1px solid var(--color-border); padding-top:var(--space-2); }
+.pdf-selection-section h3 { font-size:0.9rem; margin:0 0 6px; }
+.pdf-selection-preview { display:grid; gap:6px; min-width:0; }
+.pdf-selection-preview p { margin:4px 0; overflow-wrap:anywhere; }
+.pdf-preview-image { max-width:100%; max-height:220px; object-fit:contain; background:#f5f6f7; border:1px solid var(--color-border); }
+.pdf-selection-preview textarea { display:block; width:100%; min-width:0; resize:vertical; font:inherit; border:1px solid var(--color-border); background:var(--color-surface); color:var(--color-text); }
+.pdf-selection-preview label { font-size:0.82rem; font-weight:600; }
+.pdf-selection-preview button { justify-self:start; }
+.pdf-password { display:flex; flex-wrap:wrap; align-items:center; gap:var(--space-2); }
+.pdf-footnote { margin:0; font-size:0.75rem; color:var(--color-text-muted); }
+.pdf-inline-error { border:1px solid #9a301a; padding:var(--space-2); color:#9a301a; background:#fff1ec; }
+
+.pdf-page-canvas:has(.pdf-crop-hint) {touch-action:none;}
+
+/* Phase 03/04 — real stroke handwriting on a stable board-only canvas. */
+.board-stage{display:flex;flex-direction:column;gap:var(--space-2);min-width:0;outline-offset:4px;}
+.teaching-canvas{display:block;aspect-ratio:16/9;width:100%;max-width:100%;height:auto;touch-action:none;cursor:crosshair;border-radius:var(--radius);box-shadow:0 4px 18px #0002;}
+.board-stage:focus-visible,.teaching-canvas:focus-visible{outline:3px solid var(--color-primary);}
+.board-stage-footer{display:flex;flex-wrap:wrap;justify-content:space-between;gap:var(--space-2);font-size:.74rem;color:var(--color-text-muted);}
+.board-controls{display:flex;flex-direction:column;gap:var(--space-3);min-width:0;}
+.board-controls fieldset{border:1px solid var(--color-border);padding:var(--space-3);margin:0;border-radius:var(--radius);min-width:0;display:grid;gap:var(--space-2);}
+.board-controls legend{font-weight:700;font-size:.91rem;}
+.board-controls label{display:flex;align-items:center;gap:var(--space-2);flex-wrap:wrap;}
+.board-controls select{max-width:100%;min-width:0;background:var(--color-surface);color:var(--color-text);padding:6px;border:1px solid var(--color-border);}
+.board-control-row{display:flex;align-items:center;flex-wrap:wrap;gap:var(--space-2);}
+.board-controls [aria-pressed='true']{background:var(--color-primary);color:var(--color-primary-contrast);}
+.board-note{font-size:.78rem;line-height:1.45;color:var(--color-text-muted);margin:0;}
+.board-content-list{list-style:none;padding:0;margin:0;display:grid;gap:var(--space-2);}
+.board-content-list li{display:grid;gap:var(--space-1);padding:var(--space-2);border:1px solid var(--color-border);border-radius:var(--radius);font-size:.79rem;}
+.board-content-list .btn{padding:2px 8px;}
 
 /* Phase 07 – local non-destructive editing */
 .timeline-editor { padding: 1rem; border-top: 2px solid var(--color-border, #64748b); }

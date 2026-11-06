@@ -3,8 +3,10 @@ export interface Rect { x: number; y: number; width: number; height: number }
 export interface PdfViewport {
   width: number;
   height: number;
-  convertToPdfPoint(x: number, y: number): [number, number];
-  convertToViewportRectangle(rect: [number, number, number, number]): [number, number, number, number];
+  convertToPdfPoint(x: number, y: number): number[];
+  /** PDF.js 5/6 exposes point conversion; older geometry fixtures may provide rectangle conversion. */
+  convertToViewportRectangle?(rect: [number, number, number, number]): [number, number, number, number];
+  convertToViewportPoint?(x: number, y: number): number[];
 }
 export interface CssPoint { x: number; y: number }
 
@@ -13,17 +15,18 @@ export function rectFromCorners(x1: number, y1: number, x2: number, y2: number):
 }
 
 export function pdfRectToCss(rect: Rect, viewport: PdfViewport): Rect {
-  const [x1,y1,x2,y2] = viewport.convertToViewportRectangle([
-    rect.x,rect.y,rect.x+rect.width,rect.y+rect.height,
-  ]);
-  return rectFromCorners(x1,y1,x2,y2);
+  const corners: [number,number,number,number] = [rect.x,rect.y,rect.x+rect.width,rect.y+rect.height];
+  const [x1,y1,x2,y2] = viewport.convertToViewportPoint
+    ? [...viewport.convertToViewportPoint(corners[0],corners[1]),...viewport.convertToViewportPoint(corners[2],corners[3])]
+    : viewport.convertToViewportRectangle!(corners);
+  return rectFromCorners(x1!,y1!,x2!,y2!);
 }
 
 /** Handles all 0/90/180/270 rotations via PDF.js's own viewport inverse. */
 export function cssRectToPdf(a: CssPoint, b: CssPoint, viewport: PdfViewport): Rect {
   const [x1,y1] = viewport.convertToPdfPoint(a.x,a.y);
   const [x2,y2] = viewport.convertToPdfPoint(b.x,b.y);
-  return rectFromCorners(x1,y1,x2,y2);
+  return rectFromCorners(x1!,y1!,x2!,y2!);
 }
 
 /** Keep drag regions inside the displayed PDF page before mapping back to PDF points. */

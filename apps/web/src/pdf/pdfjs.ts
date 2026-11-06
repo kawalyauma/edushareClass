@@ -13,7 +13,7 @@ export function pdfEngine(){
 export async function openPdf(bytes:Uint8Array,onPassword?:(update:(password:string)=>void,reason:number)=>void){
   const pdfjs=await pdfEngine();
   // Do not evaluate JavaScript embedded in PDFs or fetch external attachments.
-  const task=pdfjs.getDocument({data:bytes.slice(),isEvalSupported:false,useSystemFonts:true,stopAtErrors:true});
+  const task=pdfjs.getDocument({data:bytes.slice(),useSystemFonts:true,stopAtErrors:true});
   if(onPassword)task.onPassword=onPassword;
   return {task,document:await task.promise};
 }
