@@ -22,7 +22,7 @@ export function useBoardStudio(external:Lesson,saveLesson:(lesson:Lesson)=>Promi
   const [error,setError]=useState<string|null>(null);
   const [working,setWorking]=useState(false);
   const [tool,setTool]=useState<BoardTool>('pen');
-  const [colour,setColour]=useState('#f5f0d8');
+  const [colour,setColour]=useState(()=>replay(external).theme==='white'?'#172f49':'#f5f0d8');
   const [width,setWidth]=useState(3.6);
   const [speed,setSpeed]=useState(1);
   const [style,setStyle]=useState<'ink'|'chalk'>('chalk');

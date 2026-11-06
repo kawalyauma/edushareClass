@@ -63,9 +63,15 @@ export function replay(lesson:Pick<Lesson,'actions'>,untilMs=Infinity):BoardStat
 /** Identify the most recent undoable user operation, omitting automated stroke actions. */
 export const UNDOABLE=new Set<BoardAction['type']>(['ink.draw','ink.erase','content.place','content.move','content.remove','board.clear','board.theme.set']);
 export function historyStatus(actions:BoardAction[]):{canUndo:string|null;canRedo:string|null}{
-  const undone=new Set<string>();
-  for(const a of actions){if(a.type==='history.undo')undone.add(a.targetActionId);else if(a.type==='history.redo')undone.delete(a.targetActionId);}
+  const undone=new Map<string,number>();
+  let lastEditIndex=-1;
+  actions.forEach((a,i)=>{
+    if(UNDOABLE.has(a.type))lastEditIndex=i;
+    if(a.type==='history.undo')undone.set(a.targetActionId,i);
+    else if(a.type==='history.redo')undone.delete(a.targetActionId);
+  });
   const edits=actions.filter(a=>UNDOABLE.has(a.type));
   return {canUndo:edits.slice().reverse().find(a=>!undone.has(a.id))?.id??null,
-    canRedo:edits.slice().reverse().find(a=>undone.has(a.id))?.id??null};
+    // A new edit invalidates redo of an older abandoned branch, without deleting the log.
+    canRedo:edits.slice().reverse().find(a=>(undone.get(a.id)??-1)>lastEditIndex)?.id??null};
 }

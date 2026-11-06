@@ -22,6 +22,18 @@ describe('Phase 03/04 board integration + event source',()=>{
     expect(historyStatus(l.actions).canUndo).toBe('a3');
     expect(parseLesson(l).ok).toBe(true);
   });
+  it('invalidates redo after a new edit while preserving all event history',()=>{
+    const l=blank();l.actions=[
+      {id:'a1',type:'page.add',pageId:'pg1',t:0},
+      {id:'a2',type:'ink.draw',pageId:'pg1',t:1,stroke:ink},
+      {id:'a3',type:'history.undo',targetActionId:'a2',t:2},
+      {id:'a4',type:'ink.draw',pageId:'pg1',t:3,stroke:ink},
+    ];
+    expect(historyStatus(l.actions).canRedo).toBeNull();
+    expect(replay(l).pages[0]?.ink.map(s=>s.id)).toEqual(['a4']);
+    l.actions.push({id:'a5',type:'history.undo',targetActionId:'a4',t:4});
+    expect(historyStatus(l.actions).canRedo).toBe('a4');
+  });
   it('keeps drawing and placed content on separate pages, then clears only one',()=>{
     const l=blank();l.selections=[{id:'sel',sourceId:'s1',page:1,kind:'crop',bbox:{x:1,y:1,width:10,height:10},cropAssetId:'asset'}];
     l.sources=[{id:'s1',fileName:'source.pdf',sha256:'a'.repeat(64),pageCount:2}];
