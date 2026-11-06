@@ -26,6 +26,9 @@
     },
     {
       "path": "../../packages/pdf-selection"
+    },
+    {
+      "path": "../../packages/stroke-engine"
     }
   ]
 }

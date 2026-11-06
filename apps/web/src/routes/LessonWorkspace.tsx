@@ -5,6 +5,9 @@ import { Link, useParams } from 'react-router-dom';
 import { StudioShell } from '../shell/StudioShell';
 import { useStorage } from '../storage/context';
 import { EmptyState, ErrorBanner } from '../ui';
+import {BoardCanvas} from '../board/BoardCanvas';
+import {BoardControls} from '../board/BoardControls';
+import {useBoardStudio} from '../board/useBoardStudio';
 import { useAsync } from '../useAsync';
 
 export function LessonWorkspace() {
@@ -55,25 +58,18 @@ export function LessonWorkspace() {
     await storage.save(next);
     setEdited(next);
   }
-  return (
-    <>
-      <h1 className="skip-link">{lesson.title}</h1>
-      <StudioShell
-        source={
-          <PdfReader lesson={lesson} saveLesson={saveLesson} />
-        }
-        board={
-          <div className="board-surface" role="img" aria-label="Teaching board (empty)">
-            <span>Board — {lesson.pages.length} page(s)</span>
-          </div>
-        }
-        controls={
-          <EmptyState
-            title="Controls"
-            description="Phase 02 source selections can now be previewed and checked. Handwriting and recording controls arrive in later phases."
-          />
-        }
-      />
-    </>
-  );
+  return <OpenedLesson lesson={lesson} saveLesson={saveLesson} />;
+}
+
+/** Only mount the board controller after IndexedDB has loaded a valid lesson. */
+function OpenedLesson({lesson,saveLesson}: {lesson:Lesson;saveLesson:(next:Lesson)=>Promise<void>}) {
+  const studio=useBoardStudio(lesson,saveLesson);
+  return <>
+    <h1 className="skip-link">{lesson.title}</h1>
+    <StudioShell
+      source={<PdfReader lesson={studio.lesson} saveLesson={saveLesson}/>}
+      board={<BoardCanvas studio={studio}/>}
+      controls={<BoardControls studio={studio}/>}
+    />
+  </>;
 }
