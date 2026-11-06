@@ -74,7 +74,7 @@ export function PdfReader({lesson,saveLesson}:Props){
       if(!blob)throw new Error('Original source bytes are missing. Re-upload the PDF to restore it.');
       const opened=await openPdf(new Uint8Array(await blob.arrayBuffer()),(update,reason)=>{if(!cancelled)setPassword({update,reason});});
       task=opened.task;
-      if(cancelled){await opened.document.destroy();return;}
+      if(cancelled){await opened.task.destroy();return;}
       setDoc(opened.document);
       const first=await opened.document.getPage(1);const v=first.getViewport({scale:1});
       if(!cancelled){setBaseSize({width:v.width,height:v.height});setPage(1);setWindowStart(1);}
