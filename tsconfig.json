@@ -1,0 +1,11 @@
+{
+  "files": [],
+  "references": [
+    { "path": "packages/shared-types" },
+    { "path": "packages/lesson-format" },
+    { "path": "packages/stroke-engine" },
+    { "path": "infrastructure/claim-coordinator" },
+    { "path": "apps/web" },
+    { "path": "tests" }
+  ]
+}
