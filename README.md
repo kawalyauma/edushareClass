@@ -34,3 +34,7 @@ select a text line or manually crop a scanned formula/diagram, and preview exact
 source crops before carrying the selection forward. PDFs and crops are stored only in
 IndexedDB. Mathematical text remains flagged for visual source review.
 See [Phase 02 acceptance checkpoint](docs/phase-02-acceptance.md).
+
+### Phase 05 module (implementation in progress)
+
+`packages/math-notation` provides teacher-controlled exact maths layout and an unchanged PDF crop fallback. See `docs/phase-05-acceptance.md`. Phase 05 visual and correctness acceptance remains open.

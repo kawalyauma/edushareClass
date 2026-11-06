@@ -29,6 +29,9 @@
     },
     {
       "path": "../../packages/stroke-engine"
+    },
+    {
+      "path": "../../packages/math-notation"
     }
   ]
 }

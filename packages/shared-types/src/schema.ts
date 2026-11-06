@@ -85,7 +85,7 @@ export const BoardActionSchema = z.discriminatedUnion('type', [
     pageId: id,
     selectionId: id,
     target: RectSchema,
-    mode: z.enum(['handwriting', 'crop']),
+    mode: z.enum(['handwriting', 'crop', 'math']),
   }),
   z.object({
     ...base,

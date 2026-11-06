@@ -3,6 +3,7 @@ import type {PointerEvent as ReactPointerEvent} from 'react';
 import {BOARD_HEIGHT,BOARD_WIDTH} from '@edushare/shared-types';
 import type {Point,Stroke} from '@edushare/shared-types';
 import {paintStroke} from '@edushare/stroke-engine';
+import {parseMath,layoutMath,drawMath} from '@edushare/math-notation';
 import type {BoardStudio} from './useBoardStudio';
 import {LocalPdfAssets} from '../pdf/sourceAssets';
 
@@ -53,7 +54,20 @@ export function BoardCanvas({studio}: {studio:BoardStudio}){
       const original=studio.lesson.actions.find(a=>a.type==='content.place'&&a.id===content.id);
       const shift=original&&original.type==='content.place'?{
         x:content.target.x-original.target.x,y:content.target.y-original.target.y}:{x:0,y:0};
-      if(content.mode==='crop'){
+      if(content.mode==='math'){
+        const selection=studio.lesson.selections.find(s=>s.id===content.selectionId);
+        const input=selection?.displayText??selection?.text??'';
+        const parsed=parseMath(input);
+        if(parsed.ok){
+          const layout=layoutMath(parsed.ast,62);
+          const scale=Math.min(1,(content.target.width-20)/Math.max(1,layout.width),
+            (content.target.height-18)/Math.max(1,layout.ascent+layout.descent));
+          drawMath(ctx,layout,content.target.x+10,content.target.y+9+layout.ascent*scale,foregrounds[studio.board.theme],scale);
+        }else{
+          ctx.strokeStyle=foregrounds[studio.board.theme];ctx.strokeRect(content.target.x,content.target.y,content.target.width,content.target.height);
+          ctx.font='22px sans-serif';ctx.fillStyle=foregrounds[studio.board.theme];ctx.fillText('Math source requires original crop',content.target.x+8,content.target.y+32);
+        }
+      } else if(content.mode==='crop'){
         const selection=studio.lesson.selections.find(s=>s.id===content.selectionId);
         const bitmap=selection?.cropAssetId?images.get(selection.cropAssetId):null;
         if(bitmap){ctx.drawImage(bitmap,content.target.x,content.target.y,content.target.width,content.target.height);}

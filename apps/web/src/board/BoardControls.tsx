@@ -1,6 +1,7 @@
 import {useState} from 'react';
 import type {BoardStudio} from './useBoardStudio';
 import {lastActionEnd} from './useBoardStudio';
+import {isSupportedMath} from '@edushare/math-notation';
 export function BoardControls({studio}: {studio:BoardStudio}){
   const [selectionId,setSelectionId]=useState('');
   const [notice,setNotice]=useState<string|null>(null);
@@ -38,9 +39,10 @@ export function BoardControls({studio}: {studio:BoardStudio}){
       </label>
       <div className="board-control-row">
         <button className="btn" type="button" disabled={!selected?.text} onClick={()=>{if(selected)run(studio.placeSelection(selected,'handwriting'));}}>Write text by hand</button>
+        <button className="btn" type="button" disabled={!selected?.text || !isSupportedMath(selected.displayText??selected.text??'')} onClick={()=>{if(selected)run(studio.placeSelection(selected,'math'));}}>Typeset exact maths</button>
         <button className="btn" type="button" disabled={!selected?.cropAssetId} onClick={()=>{if(selected)run(studio.placeSelection(selected,'crop'));}}>Place original crop</button>
       </div>
-      <p className="board-note">Characters without original stroke paths cannot be silently replaced. Use the exact PDF crop for formulas or unsupported glyphs.</p>
+      <p className="board-note">Mathematics uses a deliberately restricted syntax (e.g. \frac{1}{2}, x^{2}, \sqrt{9}); unsupported symbols and ambiguous source extraction must use the original PDF crop. No automatic mathematical corrections.</p>
       <label>Handwriting speed <input aria-label="Handwriting speed" type="range" min="0.25" max="4" step="0.25" value={studio.speed} onChange={e=>studio.setSpeed(Number(e.target.value))}/><span>{studio.speed}×</span></label>
     </fieldset>
     <fieldset><legend>Handwriting playback</legend>
