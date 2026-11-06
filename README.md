@@ -8,6 +8,10 @@ Manual teaching only. React + TypeScript + Vite frontend; PDF.js; stroke-path ha
 ## Development
 Read [AGENTS.md](AGENTS.md) before changing code. All work is tracked in GitHub issues. Agents self-select and claim an eligible issue in the active phase; never require the owner to assign issue numbers.
 
+## Getting started
+
+See [docs/developer-setup.md](docs/developer-setup.md). Quick check: `npm install && npm run check`.
+
 ## Phases
 1. Foundation and architecture
 2. PDF reader and selection

@@ -1,0 +1,11 @@
+node_modules
+dist
+dist-types
+coverage
+*.tsbuildinfo
+.env
+.env.*
+*.local
+coordination/claims.json
+coordination/claims.json.lock
+coordination/*.tmp
