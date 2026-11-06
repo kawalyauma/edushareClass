@@ -1,4 +1,4 @@
-import {useState} from 'react';
+import {useMemo,useState} from 'react';
 import {useNavigate} from 'react-router-dom';
 import type {RefObject} from 'react';
 import type {BoardStudio} from './useBoardStudio';
@@ -6,11 +6,13 @@ import {lastActionEnd} from './useBoardStudio';
 import {isSupportedMath} from '@edushare/math-notation';
 import {RecordingControls} from '../recording/RecordingControls';
 import type {LessonRecording} from '../recording/useLessonRecording';
-export function BoardControls({studio,recording,boardCanvas}: {
-  studio:BoardStudio;recording:LessonRecording;boardCanvas:RefObject<HTMLCanvasElement|null>
+import {planChalkSection} from '../chalkboard/chalkNotes';
+import {ChalkDraftGallery} from '../chalkboard/ChalkDraftGallery';
+export function BoardControls({studio,recording,boardCanvas,selectionId,onSelectionChange}: {
+  studio:BoardStudio;recording:LessonRecording;boardCanvas:RefObject<HTMLCanvasElement|null>;
+  selectionId:string;onSelectionChange:(id:string)=>void;
 }){
   const navigate=useNavigate();
-  const [selectionId,setSelectionId]=useState('');
   const [chalkColumns,setChalkColumns]=useState<1|2|3>(2);
   const [notice,setNotice]=useState<string|null>(null);
   const [typedText,setTypedText]=useState('');
@@ -30,9 +32,42 @@ export function BoardControls({studio,recording,boardCanvas}: {
     },'image/png');
   };
   const selected=studio.lesson.selections.find(s=>s.id===selectionId)??studio.lesson.selections.at(-1);
+  // Every section generates its completed boards in memory first. No stroke
+  // actions, media chunks or lesson pages are saved until teacher approval.
+  const draft=useMemo(()=>{
+    const text=selected?.displayText??selected?.text;
+    if(!text)return {plan:null,error:null};
+    try{return {plan:planChalkSection(text,chalkColumns,studio.speed,studio.lesson.title),error:null};}
+    catch(error){return {plan:null,error:error instanceof Error?error.message:String(error)};}
+  },[selected?.id,selected?.text,selected?.displayText,chalkColumns,studio.speed,studio.lesson.title]);
+
   const currentIndex=Math.max(0,studio.liveBoard.pages.findIndex(p=>p.id===studio.currentPageId));
   const run=(p:Promise<unknown>)=>{void p.then(()=>setNotice('Saved locally.')).catch(e=>setNotice(e instanceof Error?e.message:String(e)));};
   return <div className="board-controls" aria-label="Teacher board controls">
+    <fieldset className="chalk-section-fieldset"><legend>Prepare your chalkboard storyboards</legend>
+      <p className="board-note"><strong>Step 1:</strong> Import your lesson PDF, choose <strong>Drag over a complete PDF section</strong>, and highlight the passage you want to teach.</p>
+      <p className="board-note"><strong>Step 2:</strong> Review the exact PDF selection and its original crop, then inspect the completed board drafts below. Changing columns updates the previews without saving anything.</p>
+      <label>Chalkboard columns
+        <select aria-label="Chalkboard columns" value={chalkColumns}
+          onChange={e=>setChalkColumns(Number(e.target.value) as 1|2|3)}>
+          <option value={1}>1 — large teaching notes</option>
+          <option value={2}>2 — class explanations</option>
+          <option value={3}>3 — marking guide and revision</option>
+        </select>
+      </label>
+      {!selected?.text&&<p className="board-note">Select a text-bearing PDF area to preview the draft boards.</p>}
+      {draft.error&&<p role="alert" className="pdf-inline-error">{draft.error}</p>}
+      {draft.plan&&<ChalkDraftGallery plan={draft.plan} title={studio.lesson.title}/>}
+      <button type="button" className="btn" data-variant="primary"
+        disabled={!draft.plan||studio.working||recording.phase!=='idle'}
+        onClick={()=>{if(selected&&draft.plan)run(studio.writePdfChalkSection(selected,chalkColumns).then(()=>{
+          navigate({search:'?panel=board'},{replace:true});
+        }));}}>
+        Approve draft boards &amp; prepare recording
+      </button>
+      <p className="board-note"><strong>Step 3:</strong> After approval, start recording on the teaching board. Press Play writing when you want chalk notes to appear, and Pause writing whenever you want to explain.</p>
+      {studio.lesson.chalkTake&&<p role="status" className="chalk-approved">Approved recording script: {studio.lesson.chalkTake.pageIds.length} board(s), {studio.lesson.chalkTake.columns} columns. Ready to cue again.</p>}
+    </fieldset>
     <fieldset><legend>Lesson details</legend>
       <label>Lesson title <input aria-label="Edit lesson title" maxLength={200}
         value={titleDraft} onChange={e=>setTitleDraft(e.target.value)}/></label>
@@ -77,27 +112,9 @@ export function BoardControls({studio,recording,boardCanvas}: {
       </div>
       <p className="board-note">Your typed notes are saved as teacher-authored content, separately from original PDF selections. Unsupported handwriting symbols are reported, not silently changed.</p>
     </fieldset>
-    <fieldset className="chalk-section-fieldset"><legend>PDF section → classroom chalkboard</legend>
-      <p className="board-note">1. Open Source PDF, choose <strong>Drag over a complete PDF section</strong> and draw a box around the notes.</p>
-      <p className="board-note">2. Compare the captured text with its original PDF crop. Any teacher correction stays separate from the source.</p>
-      <label>Chalkboard columns
-        <select aria-label="Chalkboard columns" value={chalkColumns}
-          onChange={e=>setChalkColumns(Number(e.target.value) as 1|2|3)}>
-          <option value={1}>1 — large teaching notes</option>
-          <option value={2}>2 — class explanations</option>
-          <option value={3}>3 — marking guide and revision</option>
-        </select>
-      </label>
-      <button type="button" className="btn" data-variant="primary"
-        disabled={!studio.lesson.selections.length||studio.working||!selected?.text}
-        onClick={()=>{if(selected)run(studio.writePdfChalkSection(selected,chalkColumns).then(()=>{navigate({search:'?panel=board'},{replace:true});}));}}>
-        Write selected PDF section as chalk notes
-      </button>
-      <p className="board-note">New green chalkboards, realistic wood frame, white/yellow original handwritten strokes and automatic page breaks. Formula symbols that cannot be drawn are rejected, not changed.</p>
-    </fieldset>
     <fieldset><legend>Send PDF selection to board</legend>
       <label>Selected source
-        <select aria-label="Choose source selection" value={selected?.id??''} onChange={e=>setSelectionId(e.target.value)}>
+        <select aria-label="Choose source selection" value={selected?.id??''} onChange={e=>onSelectionChange(e.target.value)}>
           {!selected&&<option value="">Upload and select PDF text first</option>}
           {studio.lesson.selections.map(s=><option key={s.id} value={s.id}>Page {s.page}: {(s.displayText??s.text??'Original PDF image crop').slice(0,55)}</option>)}
         </select>

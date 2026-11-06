@@ -82,7 +82,7 @@ export function PdfPage({doc,source,pageNumber,zoom,rotation,mode,assets,onCreat
     <div className="pdf-page-label">Page {pageNumber}{ready?.scanStatus==='image-only' && <span className="pdf-flag">No selectable text — crop an image region</span>}{ready?.scanStatus==='mixed' && <span className="pdf-flag">Limited text detected — check image crop</span>}</div>
     {error&&<div role="alert" className="pdf-inline-error">{error}</div>}
     {!ready&&!error&&<p role="status">Rendering page {pageNumber}…</p>}
-    <div ref={surface} className="pdf-page-canvas" style={{width:vp?.width??undefined,height:vp?.height??undefined}}
+    <div ref={surface} className="pdf-page-canvas" data-ready={ready?'true':'false'} aria-busy={!ready} style={{width:vp?.width??undefined,height:vp?.height??undefined}}
       onPointerDown={e=>{
         if(!['crop','section'].includes(mode)||!ready||!surface.current)return;
         const p=limitToPage(relativePosition(e,surface.current),ready.viewport);

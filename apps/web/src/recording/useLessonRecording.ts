@@ -6,6 +6,7 @@ import type {RecorderStatus} from '@edushare/recording-core';
 import type {BoardStudio} from '../board/useBoardStudio';
 import {lastActionEnd} from '../board/useBoardStudio';
 import {LocalMediaChunks} from './mediaStore';
+import {probeRecordedVideoDurationMs,persistedRecordingDurationMs} from './probeMediaDuration';
 
 interface Session {
   id:string;
@@ -150,6 +151,7 @@ export function useLessonRecording(studio:BoardStudio,canvas:RefObject<HTMLCanva
   const stop=useCallback(async()=>{
     const session=active.current;
     if(!session||!['paused','recording'].includes(phase))return;
+    studio.pause();
     setPhase('stopping');setNotice('Finalising the saved media chunks…');
     try{
       if(session.recorder.state!=='inactive')session.recorder.stop();
@@ -157,13 +159,21 @@ export function useLessonRecording(studio:BoardStudio,canvas:RefObject<HTMLCanva
       await session.queue;
       const completed=session.chunkIds.length>0&&!session.error;
       const status:RecordingSegment['status']=completed?'complete':session.chunkIds.length?'recovered':'discarded';
-      await studio.upsertSegment({id:session.id,startMs:session.clock.startMs,endMs:session.clock.lessonTime(),status,audioChunkIds:[],videoChunkIds:[...session.chunkIds]});
-      if(session.chunkIds.length){const blob=await store.toBlob(studio.lesson.id,session.id);
-        if(blob)changeDownload(blob,`${studio.lesson.id}-${session.id}.${blob.type.includes('mp4')?'mp4':'webm'}`);
-      }
+      const blob=session.chunkIds.length?await store.toBlob(studio.lesson.id,session.id):null;
+      // A captured WebM may have Infinity metadata until its final keyframe is
+      // sought. Use the decoded duration to keep editing trims inside real media.
+      const encodedDuration=blob?await probeRecordedVideoDurationMs(blob):null;
+      const elapsed= session.clock.elapsed();
+      const mediaDuration=persistedRecordingDurationMs(elapsed,encodedDuration);
+      await studio.upsertSegment({id:session.id,startMs:session.clock.startMs,
+        endMs:session.clock.startMs+mediaDuration,status,audioChunkIds:[],
+        videoChunkIds:[...session.chunkIds]});
+      if(blob)changeDownload(blob,`${studio.lesson.id}-${session.id}.${blob.type.includes('mp4')?'mp4':'webm'}`);
       if(session.error){setError(session.error);setNotice('Recording ended with a media persistence warning.');}
-      else if(completed)setNotice(`Saved ${session.chunkIds.length} audio/video chunks locally. Download your browser recording.`);
-      else setNotice('No media data was saved. Please retry.');
+      else if(completed){
+        const note=encodedDuration===null?' (browser could not verify the media duration)':'';
+        setNotice(`Saved ${session.chunkIds.length} audio/video chunks locally${note}. Download your browser recording.`);
+      }else setNotice('No media data was saved. Please retry.');
       await refreshRecovery();
     }catch(e){setError(readableError(e));setNotice('Recording stopped, but final metadata could not be saved. Check recovery.');}
     finally{
@@ -173,8 +183,10 @@ export function useLessonRecording(studio:BoardStudio,canvas:RefObject<HTMLCanva
   },[phase,studio,store,changeDownload,refreshRecovery]);
   const pause=useCallback(()=>{
     const session=active.current;if(!session||phase!=='recording')return;
+    // A paused MEDIA track cannot capture new strokes. Freeze the script too.
+    studio.pause();
     session.recorder.pause();session.clock.pause();setPhase('paused');
-  },[phase]);
+  },[phase,studio]);
   const resume=useCallback(()=>{
     const session=active.current;if(!session||phase!=='paused')return;
     session.clock.resume();session.recorder.resume();setPhase('recording');
