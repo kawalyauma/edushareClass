@@ -10,14 +10,20 @@ npm test           # vitest (web/jsdom + node projects)
 npm run format     # prettier --write
 ```
 
-Claims (see ADR 0004):
+## Canonical autonomous issue coordinator
+
+The reviewed, GitHub-backed exclusive claim implementation is `scripts/agent-claim.cjs`.
+The earlier TypeScript implementation in `infrastructure/claim-coordinator` is a prototype and
+**must not** be used to claim tasks in parallel. Both mechanisms must not run concurrently.
 
 ```bash
-npm run claims -- list
-npm run claims -- claim 3 --agent codex-1 --provider openai --branch agent/codex-1/p02-pdf
-npm run claims -- heartbeat 3 --agent codex-1     # every 5 minutes
-npm run claims -- release 3 --agent codex-1       # or: complete (after merge)
+# GITHUB_TOKEN is supplied securely in the environment, never committed.
+node scripts/agent-claim.cjs status
+node scripts/agent-claim.cjs next --agent codex-worker-01 --provider codex
+node scripts/agent-claim.cjs heartbeat --agent codex-worker-01
+node scripts/agent-claim.cjs release --agent codex-worker-01
 ```
 
-By default claims use `coordination/claims.json` (local, git-ignored). Set `CLAIMS_GITHUB_REPO=owner/repo`
-and `GITHUB_TOKEN` to use the GitHub-backed store on the `coordination` branch.
+The current coordinator restricts `next` to Phase 01 issues. It must be extended and
+retested against the phase dependency graph before later-phase ten-worker dispatch.
+See `docs/COORDINATION.md` and the Phase 02 acceptance report.

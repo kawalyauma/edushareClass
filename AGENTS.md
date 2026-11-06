@@ -41,7 +41,7 @@ Each phase has up to 10 independent workstreams; 10 is a concurrency ceiling, no
 
 **Gate evidence:** a phase gate requires merged PRs, green build/typecheck/tests, source-fidelity checks where applicable, media proof where applicable, and a written acceptance checkpoint. Owner approval is required where labelled `requires-owner-review`. No phase unlock from issue creation alone.
 
-**Current launch policy:** Phase 01 is the only authorised implementation wave until its bootstrap gate is verified. Do not launch downstream implementation based on this document alone.
+**Current launch policy (2026-11-06):** The owner directed Phase 01 merge and Phase 02 implementation. Code for these two phases is available, but full browser/CI-free local acceptance and live agent race tests remain pending. Do not authorise Phase 03 or later, production release, or ten-way concurrent agent dispatch until a verified checkpoint and authoritative claim-coordinator integration exist. See `docs/phase-02-acceptance.md`.
 
 ## Branch and PR process
 - Branch: `agent/<agent-id>/pNN-<short-task>`; no shared working directory and no direct push to main.
