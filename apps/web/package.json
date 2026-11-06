@@ -17,7 +17,8 @@
     "@edushare/pdf-selection": "*",
     "pdfjs-dist": "6.4.299",
     "@edushare/stroke-engine": "*",
-    "@edushare/math-notation": "*"
+    "@edushare/math-notation": "*",
+    "@edushare/recording-core": "*"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^6.2.1",

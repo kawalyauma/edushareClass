@@ -35,6 +35,9 @@ source crops before carrying the selection forward. PDFs and crops are stored on
 IndexedDB. Mathematical text remains flagged for visual source review.
 See [Phase 02 acceptance checkpoint](docs/phase-02-acceptance.md).
 
-### Phase 05 module (implementation in progress)
+### Phase 05/06 modules (in progress)
 
-`packages/math-notation` provides teacher-controlled exact maths layout and an unchanged PDF crop fallback. See `docs/phase-05-acceptance.md`. Phase 05 visual and correctness acceptance remains open.
+- `packages/math-notation` — teacher-controlled exact maths typesetting with a strict parser and original PDF crop fallback. See `docs/phase-05-acceptance.md`.
+- `packages/recording-core` + `apps/web/src/recording` — explicit teacher microphone access, board-only browser video and progressive local recovery chunks. See `docs/phase-06-acceptance.md`.
+
+These features are **not production-approved** until the browser, device and synchronisation acceptance checks pass. MP4 export is scheduled for Phase 08, not guaranteed by MediaRecorder.

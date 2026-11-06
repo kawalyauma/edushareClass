@@ -1,5 +1,5 @@
 import {useCallback,useEffect,useMemo,useRef,useState} from 'react';
-import type {BoardAction,Lesson,Rect,SourceSelection,Stroke} from '@edushare/shared-types';
+import type {BoardAction,Lesson,RecordingSegment,Rect,SourceSelection,Stroke} from '@edushare/shared-types';
 import {historyStatus,replay} from '@edushare/lesson-format';
 import {planHandwriting} from '@edushare/stroke-engine';
 import {parseMath,layoutMath} from '@edushare/math-notation';
@@ -11,14 +11,17 @@ const defaultRect=(index:number):Rect=>({x:90,y:Math.min(875,85+index*145),width
 export type BoardTool='pen'|'eraser';
 const action=(l:Lesson,type:BoardAction['type'],props:Record<string,unknown>,t=logicalTime(l.actions)):BoardAction=>
     ({id:newId(),t,type,...props}) as BoardAction;
-const ensurePage=(l:Lesson):{next:Lesson;pageId:string}=>{
+const ensurePage=(l:Lesson,makeAction:typeof action=action):{next:Lesson;pageId:string}=>{
     const state=replay(l);if(state.currentPageId)return {next:l,pageId:state.currentPageId};
-    const pageId=newId();const a=action(l,'page.add',{pageId});
+    const pageId=newId();const a=makeAction(l,'page.add',{pageId});
     return {next:{...l,pages:[...l.pages,{id:pageId,index:l.pages.length}],actions:[...l.actions,a]},pageId};
   };
 
 export function useBoardStudio(external:Lesson,saveLesson:(lesson:Lesson)=>Promise<void>){
   const [lesson,setLesson]=useState(external);
+  const recordingClock=useRef<(()=>number)|null>(null);
+  const setRecordingClock=useCallback((read:()=>number)=>{recordingClock.current=read;return ()=>{if(recordingClock.current===read)recordingClock.current=null;};},[]);
+  const makeAction=useCallback<typeof action>((l,type,props,t)=>action(l,type,props,t??Math.max(logicalTime(l.actions),recordingClock.current?.()??0)),[]);
   const latest=useRef(external);
   const [error,setError]=useState<string|null>(null);
   const [working,setWorking]=useState(false);
@@ -69,18 +72,18 @@ export function useBoardStudio(external:Lesson,saveLesson:(lesson:Lesson)=>Promi
   const currentPageId=liveBoard.currentPageId;
   const page=liveBoard.pages.find(p=>p.id===currentPageId);
   const newPage=useCallback(async()=>{
-    await commit(l=>{const pageId=newId();const add=action(l,'page.add',{pageId});
-      const shown=action({...l,actions:[...l.actions,add]},'page.show',{pageId});
+    await commit(l=>{const pageId=newId();const add=makeAction(l,'page.add',{pageId});
+      const shown=makeAction({...l,actions:[...l.actions,add]},'page.show',{pageId});
       return {...l,pages:[...l.pages,{id:pageId,index:l.pages.length}],actions:[...l.actions,add,shown]};});
     showAll();
-  },[commit,showAll]);
+  },[commit,showAll,makeAction]);
   const showPage=useCallback(async(pageId:string)=>{
-    await commit(l=>({...l,actions:[...l.actions,action(l,'page.show',{pageId})]}));showAll();
-  },[commit,showAll]);
+    await commit(l=>({...l,actions:[...l.actions,makeAction(l,'page.show',{pageId})]}));showAll();
+  },[commit,showAll,makeAction]);
   const placeSelection=useCallback(async(selection:SourceSelection,mode:'handwriting'|'crop'|'math')=>{
     let interval:{start:number;end:number}|null=null;
     await commit(l=>{
-      const {next,pageId}=ensurePage(l);
+      const {next,pageId}=ensurePage(l,makeAction);
       const pageState=replay(next).pages.find(p=>p.id===pageId);
       const bottom=Math.max(35,...(pageState?.content.map(c=>c.target.y+c.target.height)??[]));
       const nextY=Math.max(90,bottom+38);
@@ -106,7 +109,7 @@ export function useBoardStudio(external:Lesson,saveLesson:(lesson:Lesson)=>Promi
         target={...target,width:imageWidth*fit,height:imageWidth*ratio*fit};
       }
       if(target.y+target.height>1020)throw new Error('This board page has no room for the selection. Add a new page first.');
-      const place=action(next,'content.place',{pageId,selectionId:selection.id,target,mode});
+      const place=makeAction(next,'content.place',{pageId,selectionId:selection.id,target,mode});
       const actions=[...next.actions,place];
       if(plan){
         const first=logicalTime(actions);
@@ -119,43 +122,46 @@ export function useBoardStudio(external:Lesson,saveLesson:(lesson:Lesson)=>Promi
       return {...next,actions};
     });
     if(interval){const x=interval as {start:number;end:number};startPlayback(x.start,x.end);}else showAll();
-  },[commit,colour,width,speed,startPlayback,showAll]);
+  },[commit,colour,width,speed,startPlayback,showAll,makeAction]);
   const draw=useCallback(async(stroke:Stroke)=>{
-    await commit(l=>{const {next,pageId}=ensurePage(l);return {...next,actions:[...next.actions,action(next,'ink.draw',{pageId,stroke})]};});showAll();
-  },[commit,showAll]);
+    await commit(l=>{const {next,pageId}=ensurePage(l,makeAction);return {...next,actions:[...next.actions,makeAction(next,'ink.draw',{pageId,stroke})]};});showAll();
+  },[commit,showAll,makeAction]);
   const erase=useCallback(async(strokeIds:string[])=>{
     if(!currentPageId||!strokeIds.length)return;
-    await commit(l=>({...l,actions:[...l.actions,action(l,'ink.erase',{pageId:currentPageId,strokeIds})]}));showAll();
-  },[commit,currentPageId,showAll]);
+    await commit(l=>({...l,actions:[...l.actions,makeAction(l,'ink.erase',{pageId:currentPageId,strokeIds})]}));showAll();
+  },[commit,currentPageId,showAll,makeAction]);
   const clear=useCallback(async()=>{
     if(!currentPageId)return;
-    await commit(l=>({...l,actions:[...l.actions,action(l,'board.clear',{pageId:currentPageId})]}));showAll();
-  },[commit,currentPageId,showAll]);
+    await commit(l=>({...l,actions:[...l.actions,makeAction(l,'board.clear',{pageId:currentPageId})]}));showAll();
+  },[commit,currentPageId,showAll,makeAction]);
   const move=useCallback(async(contentId:string,x:number,y:number)=>{
     if(!currentPageId)return;
     await commit(l=>{const state=replay(l).pages.find(p=>p.id===currentPageId);
       const target=state?.content.find(c=>c.id===contentId)?.target;
       if(!target)return l;
-      return {...l,actions:[...l.actions,action(l,'content.move',{pageId:currentPageId,contentId,target:{...target,x,y}})]};});
-  },[commit,currentPageId]);
+      return {...l,actions:[...l.actions,makeAction(l,'content.move',{pageId:currentPageId,contentId,target:{...target,x,y}})]};});
+  },[commit,currentPageId,makeAction]);
   const remove=useCallback(async(contentId:string)=>{
     if(!currentPageId)return;
-    await commit(l=>({...l,actions:[...l.actions,action(l,'content.remove',{pageId:currentPageId,contentId})]}));
-  },[commit,currentPageId]);
+    await commit(l=>({...l,actions:[...l.actions,makeAction(l,'content.remove',{pageId:currentPageId,contentId})]}));
+  },[commit,currentPageId,makeAction]);
   const changeTheme=useCallback(async(theme:'green'|'black'|'white')=>{
-    await commit(l=>({...l,actions:[...l.actions,action(l,'board.theme.set',{theme})]}));
+    await commit(l=>({...l,actions:[...l.actions,makeAction(l,'board.theme.set',{theme})]}));
     setColour(theme==='white'?'#172f49':'#f5f0d8');
-  },[commit]);
+  },[commit,makeAction]);
   const history=historyStatus(lesson.actions);
   const undo=useCallback(async()=>{
     const target=historyStatus(latest.current.actions).canUndo;if(!target)return;
-    await commit(l=>({...l,actions:[...l.actions,action(l,'history.undo',{targetActionId:target})]}));showAll();
-  },[commit,showAll]);
+    await commit(l=>({...l,actions:[...l.actions,makeAction(l,'history.undo',{targetActionId:target})]}));showAll();
+  },[commit,showAll,makeAction]);
   const redo=useCallback(async()=>{
     const target=historyStatus(latest.current.actions).canRedo;if(!target)return;
-    await commit(l=>({...l,actions:[...l.actions,action(l,'history.redo',{targetActionId:target})]}));showAll();
-  },[commit,showAll]);
-  return {lesson,board,liveBoard,page,currentPageId,error,working,tool,setTool,colour,setColour,width,setWidth,
+    await commit(l=>({...l,actions:[...l.actions,makeAction(l,'history.redo',{targetActionId:target})]}));showAll();
+  },[commit,showAll,makeAction]);
+  const upsertSegment=useCallback(async(segment:RecordingSegment)=>{
+    await commit(l=>({...l,segments:[...l.segments.filter(s=>s.id!==segment.id),segment]}));
+  },[commit]);
+  return {lesson,board,liveBoard,page,currentPageId,setRecordingClock,upsertSegment,error,working,tool,setTool,colour,setColour,width,setWidth,
     speed,setSpeed,style,setStyle,playhead,isPlaying,pause,resume,showAll,startPlayback,
     newPage,showPage,placeSelection,draw,erase,clear,move,remove,changeTheme,undo,redo,history};
 }
