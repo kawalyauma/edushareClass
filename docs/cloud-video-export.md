@@ -1,128 +1,124 @@
-# EduShareClass — private AWS video export
+# EduShareClass AWS video export and loud voice enhancement
 
-Status: **live integration verified on 7 November 2026**. The web application is at
-https://notesug.com/edushareclass/ and its cloud-export option is an explicit
-teacher action. This feature does not upload lesson media automatically.
+## Deployment status
 
-## Purpose
+**7 November 2026:** The audio mastering engine is installed and active on AWS EC2.
+The owner-requested **four-digit shared uploader PIN** is implemented with
+rate limits in the repository, but the change is **not yet activated on the
+public Function URL**. The old code continues to protect the existing live
+page until the owner runs the activation script and enters the intended PIN
+directly in an interactive server terminal.
 
-EduShareClass stores the teacher's original recorded lesson clips in IndexedDB.
-The previous browser-only 1080p compositor can freeze on slow phones and
-computers. Cloud export uploads the **saved source WebM/MP4 clips directly to
-private S3**, then renders them into H.264/AAC MP4 on a separate EC2 FFmpeg worker.
+Do **not** publish the PIN-only frontend separately before the backend PIN
+and quota deployment succeeds. Otherwise user uploads will fail.
 
-The existing browser-only export is preserved as an opt-out/fallback.
+## Infrastructure
 
-## Resource map
+- AWS account: `417081976539`, separate from the original Frankfurt account.
+- Region: `eu-north-1` (Stockholm).
+- EC2: `i-03d6552ce61bbc853`, `m7i-flex.large`, 2 vCPU / 8 GiB RAM.
+- Private S3: `edushare-render-417081976539-eu-north-1`.
+- SQS `edushare-video-render-jobs` and dead-letter queue.
+- Lambda `edushare-cloud-video-export` handles job metadata, signed uploads,
+  queueing, worker auto-start and signed downloads.
+- DynamoDB `EduShareCloudRenderQuota` is created and active for transaction-safe
+  budget limits. It is not used until the PIN backend is activated.
+- Worker role has limited S3/SQS permissions; no inbound ports, controlled via SSM.
+- CloudWatch idle alarm stops the EC2 after approximately one hour of low CPU.
+  Lambda wakes it for the next queued export.
 
-- Account: `417081976539` (**new EduShare AWS account, not the existing Frankfurt account**)
-- Region: `eu-north-1` (Stockholm)
-- Worker EC2: `i-03d6552ce61bbc853`, `m7i-flex.large`, 2 vCPUs / 8 GB RAM
-- Worker role: `EduShareVideoRendererRole`; management through AWS Systems Manager
-- Private storage: `s3://edushare-render-417081976539-eu-north-1`
-- Queue: `edushare-video-render-jobs`; dead-letter queue: `edushare-video-render-failures`
-- Lambda control plane: `edushare-cloud-video-export`
-- Restricted Function URL requires a random 288-bit bearer secret, checked by
-  comparing SHA-256 digests; the full secret is not included in app JS, Git, or S3.
-- CloudWatch: `edushare-video-renderer-idle-autostop` stops worker after approximately
-  one hour of sustained CPU use below 3%. The Lambda service starts stopped
-  workers when a new job is queued.
+## Owner activation: shared PIN and old-code revocation
 
-## Owner workflow
-
-1. Finish recording, confirm source clips are saved in the **same browser profile**
-   where the lesson was recorded, and navigate to the lesson's Controls panel.
-2. Under **Cloud MP4 export**, paste the private access code and click
-   **Export MP4 on AWS**. This is explicit consent to upload the selected clips.
-3. Wait for the AWS processing status to become complete; click **Download MP4**.
-   A provenance manifest is also available.
-4. If the browser closes after the job is queued, reopen the same lesson, re-enter
-   the access code and select **Check last AWS export / renew download link**.
-   The non-secret job ID is remembered in localStorage for this purpose.
-5. Do **not refresh while a microphone recording is actively in progress**.
-   The previous web assets are retained on the server so open tabs can finish.
-
-Read the private access code only on the server:
+Run this single script in an **interactive Ubuntu terminal**. It prompts for the
+four digits with terminal echo disabled; do not paste the PIN into Git or the
+JavaScript bundle:
 
 ```bash
-sudo -u codexagent cat /home/codexagent/workspace/edushareclass-deploy/tools/video-renderer/cloud-export-access.secret
+bash /home/codexagent/workspace/edushareclass-deploy/remote-export-wt/infrastructure/aws-render/activate-uploader-pin.sh
 ```
 
-Use a secure channel when providing it to the owner. Never commit the access code.
+The script verifies quota/audio unit tests, deploys DynamoDB-backed PIN
+validation, waits until the new PIN works and the old long access code is
+rejected, deletes the old credential file, checks browser CORS, runs an
+actual S3→SQS→EC2→MP4 smoke export, builds frontend and atomically switches
+`/opt/notesug/archive/edushareclass/index.html` to the new UI. Old hashed
+assets are preserved so existing recording tabs can finish.
 
-## Processing and privacy
+The shared four-digit PIN is only a convenient upload gate, **not secure
+per-teacher authentication**. Anyone who knows/guesses it can use the shared
+daily capacity, and PIN access alone does not verify ownership of a
+teacher's recording. Private S3 objects remain inaccessible by default;
+download links are scoped to unguessable job IDs and expire after 15 minutes.
+For an unrestricted public school, add real account authentication,
+per-teacher ownership and a WAF/rate-limiting edge before removing quotas.
 
-- Browser creates job metadata; Lambda signs temporary S3 PUT URLs for
-  `uploads/<job-id>/<segment-id>.webm` and `.mp4`.
-- The browser performs the actual upload (without passing private video through
-  the old web server). Requests are allowed from `https://notesug.com` only
-  at the CORS layer.
-- Lambda checks every object's MIME type and size, enqueues the job and wakes
-  the EC2 worker if stopped.
-- The worker downloads saved originals, applies clip trim/reorder/rate via FFmpeg,
-  optionally adds NotesUG title cards and watermark, and writes an MP4 to
-  `renders/<job-id>.mp4`.
-- Job status remains private in `jobs/<job-id>.json` and is fetched with the
-  private bearer secret. MP4 download links are signed for 15 minutes.
-- The final MP4 has H.264 video, AAC audio, 30 fps and resolution up to 1080p.
-  No synthetic narration or music is added.
-- S3 objects are encrypted, block public access and deny insecure transport.
-  Source clips expire after seven days, rendered videos and job metadata
-  after thirty days. Original local recordings are not deleted.
-- EC2 has **no inbound security-group ports**. Management uses SSM.
+### Maximum daily allowance
 
-## Current limits and important caveats
+The Lambda accepts a maximum **24 new jobs per UTC day**, including **8 jobs
+per source IP**, **4 GiB total source data** and **120 minutes total edited
+duration**. Individual jobs may contain up to **750 MiB** and **30 minutes** of
+edited output (with the existing 40 source files/150 timeline edits limits).
+DynamoDB transactions reserve both per-IP and global allowance *atomically*
+before S3 upload URLs are issued. Rejected requests receive HTTP 429.
+Unused reservations are intentionally not refunded, preventing abuse via
+repeated incomplete uploads. Quota values can be changed in `quota.py`
+subject to account budget review.
 
-- This is a **single-owner private access code**, not production-grade
-  role-based multi-tenant authentication. Before exposing to school users,
-  integrate it with the existing NotesUG identity/session system and enforce
-  per-user and per-school quotas.
-- Up to **40 distinct source clips** and **150 timeline edits** per export;
-  source recording size up to 750 MiB each, 2 GiB total and edited duration
-  up to two hours. Large or long exports can be slow on 2 vCPUs.
-- Signed upload links expire after 15 minutes. A failed/expired upload can be
-  retried by starting a new export; resuming incomplete uploads is not yet
-  implemented.
-- No progress percentage from individual FFmpeg clips yet; the UI reports
-  upload progress and queued/rendering/completed status.
-- A browser recording can be edited only if its IndexedDB source remains in
-  the same device/browser profile. The server cannot access recordings stored
-  on a separate user's device without user-initiated upload.
-- A completed MP4 is not proof that the **owner's newest recording** has been
-  uploaded. Owner must perform a new lesson export to verify that particular file.
-- Amazon EC2, Lambda, SQS, S3 and CloudWatch can consume AWS Free-plan
-  credits; eligibility does not imply unlimited free operation.
+S3 uploads expire after seven days; outputs and job manifests after thirty.
+EC2, S3, SQS, Lambda, DynamoDB and CloudWatch can consume AWS credits and incur
+charges. Free-plan instance eligibility does not mean unlimited free renders.
 
-## Release QA evidence (2026-11-07)
+## Adaptive voice enhancement engine
 
-- Backend true end-to-end: **S3 upload → SQS → EC2 worker → MP4 → signed download**.
-- Actual source: the latest available prior **browser QA** WebM file
-  (`logs/notesug-branded-export.webm`), not a file from the owner's separate PC.
-- Standard MP4: 12.021 s, 1920×1080, H.264/AAC.
-- Branded MP4: 16.221 s, 1920×1080, H.264/AAC.
-- Lambda API and S3 browser CORS preflight tests: pass for `https://notesug.com`.
-- Unauthorised requests: rejected with HTTP 401.
-- Browser TypeScript build and selected lint: pass.
-- Web automated tests: 117 passing prior to adding recovery checks.
-- The live page and hashed JS asset returned HTTP 200 and contained the AWS UI.
-- User-facing acceptance still needs confirmation on the **new** browser recording
-  once that recording has been saved locally.
+`infrastructure/aws-render/audio_mastering.py` runs on EC2 for **every
+recorded audio clip**, after temporal trimming/playback-rate correction.
 
-## Recovery and operational commands
+Fixed, audited FFmpeg chain (no user shell arguments):
 
-```bash
-# See the worker
-aws ec2 describe-instances --profile edushare-renderer --region eu-north-1 \
-  --instance-ids i-03d6552ce61bbc853
+1. High-pass at 85 Hz and low-pass at 14.5 kHz to reduce mic rumble and hiss.
+2. FFT spectral denoiser (`afftdn`) to reduce broadband background noise.
+3. Two EQ boosts around 185 Hz (warmth) and 3.2 kHz (vocal intelligibility).
+4. Dynamic normalisation (`dynaudnorm`) to recover quiet teacher speech.
+5. Controlled gain, soft clipping and a true-peak-oriented limiter to
+   increase perceived loudness without digital sample clipping.
+6. Audio resampled to 48 kHz and encoded as AAC; video stays H.264/1080p.
 
-# See queue depth
-aws sqs get-queue-attributes --profile edushare-renderer --region eu-north-1 \
-  --queue-url https://sqs.eu-north-1.amazonaws.com/417081976539/edushare-video-render-jobs \
-  --attribute-names ApproximateNumberOfMessages ApproximateNumberOfMessagesNotVisible
-```
+The audio is processed automatically; no additional teacher audio file or
+paid speech model is needed. The target is **strong, consistent spoken audio**
+near -14 LUFS on typical recording material, but results depend on the source.
+It cannot reconstruct missing words or guarantee total noise removal.
 
-Production static web assets are served from
-`/opt/notesug/archive/edushareclass/`. The pre-cloud backup is at
-`/home/codexagent/workspace/edushareclass-deploy/backups/web-before-aws-cloud-20261107/`.
-The previous hashed JavaScript file was intentionally retained so open
-recording tabs would not break during deployment.
+### Verified media QA (actual EC2 export)
+
+- Test source: prior NotesUG/EduShareClass browser QA WebM from the deployment
+  host; **not the owner's newest browser recording**.
+- New speech-v2 AWS MP4: 1920×1080, H.264 video, AAC audio, 12.021 seconds.
+- Measured input integrated loudness: **-17.2 LUFS**, input true peak **+0.5 dBFS**.
+- Measured exported MP4 integrated loudness: **-14.6 LUFS**, true peak
+  **-1.5 dBFS**. Improvement: **2.6 LU** louder perceived loudness with peak
+  safely reduced.
+- Data flow S3 upload → SQS → EC2 FFmpeg → S3 MP4 → signed download: PASS.
+- The old long access code remained valid *during this test*; activation
+  must re-run the smoke test with the new user-provided PIN.
+
+## Using the uploader after PIN activation
+
+1. Finish saving the recording in the same browser profile used to record it.
+2. Open https://notesug.com/edushareclass/ and the lesson's Controls panel.
+3. Enter the four-digit uploader PIN, select NotesUG branding if desired, and
+   click **Export MP4 on AWS**.
+4. Download the finished MP4. If the tab closes after queueing, reopen the same
+   lesson, re-enter the PIN and click **Check last AWS export**.
+
+There is no AI voice replacement or synthetic teacher narration. The browser
+does not re-encode the full edited lesson. The original recording stays local
+unless a teacher explicitly starts an AWS export.
+
+## Recovery
+
+The pre-PIN web files are backed up before activation; the previous
+pre-cloud backup lives at
+`/home/codexagent/workspace/edushareclass-deploy/backups/web-before-aws-cloud-20261107`.
+The new backend code is in `infrastructure/aws-render/{handler.py,quota.py}`,
+and the worker/mastering code in `{worker.py,audio_mastering.py}`. Do not
+re-enable the old leaked long credential after revocation.

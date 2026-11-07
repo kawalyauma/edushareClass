@@ -2,7 +2,7 @@
 """Deploy the authenticated EduShare AWS cloud export API.
 
 No application credentials are shipped to browser assets or Git.
-Only the local, permission-0600 secret file authorises job creation.
+Uploader PINs are not stored in code or returned to browser bundles.
 """
 from __future__ import annotations
 
@@ -29,9 +29,10 @@ INSTANCE_ID="i-03d6552ce61bbc853"
 FUNCTION="edushare-cloud-video-export"
 ROLE="EduShareCloudExportApiRole"
 WORKER_ROLE="EduShareVideoRendererRole"
+QUOTA_TABLE="EduShareCloudRenderQuota"
 ROOT=Path(__file__).parent
 SECRETS=Path("/home/codexagent/workspace/edushareclass-deploy/tools/video-renderer")
-ACCESS_FILE=SECRETS/"cloud-export-access.secret"
+LEGACY_ACCESS_FILE=SECRETS/"cloud-export-access.secret"
 RESULT=SECRETS/"cloud-export-api.json"
 
 # The system boto3 is older than AWS CLI's `aws login` credential provider.
@@ -52,6 +53,7 @@ iam=session.client("iam")
 lam=session.client("lambda")
 s3=session.client("s3")
 ec2=session.client("ec2")
+dynamo=session.client("dynamodb")
 
 
 def call(f,*args,**kwargs):
@@ -70,6 +72,8 @@ def iam_upsert():
         {"Effect":"Allow","Action":["s3:PutObject","s3:GetObject"],"Resource":f"arn:aws:s3:::{BUCKET}/uploads/*"},
         {"Effect":"Allow","Action":["s3:GetObject"],"Resource":f"arn:aws:s3:::{BUCKET}/renders/*"},
         {"Effect":"Allow","Action":["sqs:SendMessage"],"Resource":QUEUE_ARN},
+        {"Effect":"Allow","Action":["dynamodb:TransactWriteItems"],
+         "Resource":f"arn:aws:dynamodb:{REGION}:{ACCOUNT}:table/{QUOTA_TABLE}"},
         {"Effect":"Allow","Action":["ec2:DescribeInstances"],"Resource":"*"},
         {"Effect":"Allow","Action":["ec2:StartInstances"],"Resource":f"arn:aws:ec2:{REGION}:{ACCOUNT}:instance/{INSTANCE_ID}"},
     ]}
@@ -105,24 +109,46 @@ def setup_storage():
     s3.put_bucket_lifecycle_configuration(Bucket=BUCKET,LifecycleConfiguration=lifecycle)
     s3.upload_file(str(ROOT/"worker.py"),BUCKET,"service/worker-v2.py",
                    ExtraArgs={"ContentType":"text/x-python","ServerSideEncryption":"AES256"})
+    s3.upload_file(str(ROOT/"audio_mastering.py"),BUCKET,"service/audio_mastering.py",
+                   ExtraArgs={"ContentType":"text/x-python","ServerSideEncryption":"AES256"})
     print("PRIVATE_STORAGE_READY",flush=True)
 
 
 def private_access_key():
-    SECRETS.mkdir(parents=True,exist_ok=True)
-    if ACCESS_FILE.exists():
-        value=ACCESS_FILE.read_text().strip()
-    else:
-        value=secrets.token_urlsafe(36)
-        fd=os.open(ACCESS_FILE,os.O_CREAT|os.O_EXCL|os.O_WRONLY,0o600)
-        with os.fdopen(fd,"w") as f:f.write(value+"\n")
-    return value
+    pin=os.environ.get("EDUSHARE_UPLOAD_PIN", "")
+    if len(pin)!=4 or not pin.isascii() or not pin.isdigit():
+        raise RuntimeError("Set a four-digit uploader PIN in the deployment environment")
+    return pin
+
+
+def setup_quota():
+    try:
+        dynamo.describe_table(TableName=QUOTA_TABLE)
+    except dynamo.exceptions.ResourceNotFoundException:
+        dynamo.create_table(
+            TableName=QUOTA_TABLE,
+            AttributeDefinitions=[{"AttributeName":"pk","AttributeType":"S"}],
+            KeySchema=[{"AttributeName":"pk","KeyType":"HASH"}],
+            BillingMode="PAY_PER_REQUEST",
+            Tags=[{"Key":"Project","Value":"EduShare"},
+                  {"Key":"Component","Value":"RenderQuota"}],
+        )
+        print("QUOTA_TABLE_CREATED",QUOTA_TABLE,flush=True)
+    dynamo.get_waiter("table_exists").wait(TableName=QUOTA_TABLE)
+    ttl=dynamo.describe_time_to_live(TableName=QUOTA_TABLE).get("TimeToLiveDescription",{})
+    if ttl.get("TimeToLiveStatus") not in ("ENABLED","ENABLING"):
+        dynamo.update_time_to_live(
+            TableName=QUOTA_TABLE,
+            TimeToLiveSpecification={"Enabled":True,"AttributeName":"expiresAt"}
+        )
+    print("ATOMIC_QUOTAS_READY",QUOTA_TABLE,flush=True)
 
 
 def lambda_zip():
     with tempfile.TemporaryFile() as fd:
         with zipfile.ZipFile(fd,"w",compression=zipfile.ZIP_DEFLATED) as z:
             z.write(ROOT/"handler.py","handler.py")
+            z.write(ROOT/"quota.py","quota.py")
         fd.seek(0)
         return fd.read()
 
@@ -134,6 +160,7 @@ def create_lambda(role_arn,key):
         "EDUSHARE_RENDER_QUEUE_URL":QUEUE_URL,
         "EDUSHARE_RENDER_INSTANCE_ID":INSTANCE_ID,
         "EDUSHARE_RENDER_ACCESS_HASH":hashlib.sha256(key.encode()).hexdigest(),
+        "EDUSHARE_RENDER_QUOTA_TABLE":QUOTA_TABLE,
     }}
     try:
         current=lam.get_function(FunctionName=FUNCTION)
@@ -207,16 +234,38 @@ def main():
     if instance["InstanceType"]!="m7i-flex.large":
         raise SystemExit("Expected approved m7i-flex.large instance")
     print("ACCOUNT_VERIFIED",account,flush=True)
+    setup_quota()
     role=iam_upsert()
     setup_storage()
     key=private_access_key()
     url=create_lambda(role,key)
+    import requests
+    # Confirm the new PIN is live before revoking and deleting the older long code.
+    old_code=LEGACY_ACCESS_FILE.read_text().strip() if LEGACY_ACCESS_FILE.exists() else None
+    for attempt in range(10):
+        try:
+            auth=requests.get(url.rstrip("/")+"/v1/health",
+                headers={"Authorization":"Bearer "+key},timeout=10)
+            legacy=(requests.get(url.rstrip("/")+"/v1/health",
+                headers={"Authorization":"Bearer "+old_code},timeout=10)
+                if old_code and old_code != key else None)
+            if auth.status_code==200 and (legacy is None or legacy.status_code==401):
+                break
+        except requests.RequestException:
+            pass
+        time.sleep(3)
+    else:
+        raise RuntimeError("New four-digit PIN or old-code revocation could not be verified")
+    if LEGACY_ACCESS_FILE.exists():
+        LEGACY_ACCESS_FILE.unlink()
+    print("OLD_LONG_ACCESS_CODE_REVOKED_AND_DELETED",flush=True)
     result={"account":ACCOUNT,"region":REGION,"function":FUNCTION,"functionUrl":url,
-            "workerInstanceId":INSTANCE_ID,"bucket":BUCKET,"secretPath":str(ACCESS_FILE)}
+            "workerInstanceId":INSTANCE_ID,"bucket":BUCKET,
+            "authMode":"four_digit_shared_pin_with_atomic_quota","quotaTable":QUOTA_TABLE}
     fd=os.open(RESULT,os.O_CREAT|os.O_TRUNC|os.O_WRONLY,0o600)
     with os.fdopen(fd,"w") as f:json.dump(result,f,indent=2);f.write("\n")
     print("FUNCTION_URL",url,flush=True)
-    print("SECRET_STORED_LOCALLY_NOT_PRINTED",str(ACCESS_FILE),flush=True)
+    print("FOUR_DIGIT_PIN_ACTIVE_WITH_QUOTAS",flush=True)
     print("DEPLOYMENT_RESULT",str(RESULT),flush=True)
 
 if __name__=="__main__":

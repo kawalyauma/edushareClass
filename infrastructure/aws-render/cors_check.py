@@ -5,12 +5,13 @@ Does not log bearer token, signed request URLs, clip contents or credentials.
 """
 from __future__ import annotations
 import json
+import os
 from pathlib import Path
 import requests
 
 ROOT=Path("/home/codexagent/workspace/edushareclass-deploy")
 CONF=json.loads((ROOT/"tools/video-renderer/cloud-export-api.json").read_text())
-SECRET=(ROOT/"tools/video-renderer/cloud-export-access.secret").read_text().strip()
+SECRET=os.environ.get("EDUSHARE_UPLOAD_PIN") or (ROOT/"tools/video-renderer/cloud-export-access.secret").read_text().strip()
 API=CONF["functionUrl"].rstrip("/")
 
 def check():

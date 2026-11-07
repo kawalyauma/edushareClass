@@ -20,6 +20,8 @@ from pathlib import Path
 
 import boto3
 
+from audio_mastering import MASTERING_VERSION, speech_mastering_filter
+
 REGION = os.environ["AWS_REGION"]
 BUCKET = os.environ["EDUSHARE_RENDER_BUCKET"]
 QUEUE_URL = os.environ["EDUSHARE_RENDER_QUEUE_URL"]
@@ -159,7 +161,7 @@ def make_clip(source,clip,has_audio,watermark,caption,output,directory):
         args.extend(["-map","0:v:0","-map","0:a:0"])
         args.extend([
             "-vf",video_filter,
-            "-af",f"atrim=duration={duration:.3f},asetpts=PTS-STARTPTS,atempo={rate:.4f}",
+            "-af",f"atrim=duration={duration:.3f},asetpts=PTS-STARTPTS,{speech_mastering_filter(rate)}",
         ])
     else:
         args.extend([
@@ -268,7 +270,7 @@ def transcode(job_id):
         update(
             job_id,"completed",outputBytes=final.stat().st_size,
             outputDurationMs=round(duration*1000),finishedAt=int(time.time()),
-            audioIncluded=has_audio,
+            audioIncluded=has_audio,audioMastering=MASTERING_VERSION,
         )
         log.info("MP4 success: job=%s duration=%.2fs size=%d",job_id,duration,final.stat().st_size)
 

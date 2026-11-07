@@ -2,7 +2,7 @@
 
 Browser -> temporary presigned S3 PUT (raw saved clips, no browser canvas re-encode).
 Worker -> private SQS -> FFmpeg -> private S3 rendered MP4.
-An independent 256-bit access code is hashed and never included in frontend assets.
+User-selected 4-digit PIN plus strict per-IP and daily cost guard. Not an identity system.
 """
 from __future__ import annotations
 
@@ -18,6 +18,8 @@ import uuid
 import boto3
 from botocore.config import Config
 from botocore.exceptions import ClientError
+
+from quota import reserve_upload, UploadQuotaExceeded, MAX_JOB_BYTES, MAX_JOB_DURATION_MS
 
 REGION = os.environ["AWS_REGION"]
 BUCKET = os.environ["EDUSHARE_RENDER_BUCKET"]
@@ -57,7 +59,7 @@ def valid_access(event):
     if not isinstance(token, str) or not token.startswith("Bearer "):
         return False
     supplied = token[7:]
-    if len(supplied) < 32 or len(supplied) > 128:
+    if not re.fullmatch(r"[0-9]{4}",supplied):
         return False
     digest = hashlib.sha256(supplied.encode("utf-8")).hexdigest()
     return hmac.compare_digest(digest, ACCESS_HASH)
@@ -122,8 +124,8 @@ def validate_new_job(body):
         seen.add(segment_id)
         size_sum += length
         clean_segments.append({"segmentId":segment_id, "mimeType":mime, "sizeBytes":length})
-    if size_sum > MAX_UPLOAD_BYTES:
-        raise ValueError("Total uploaded video exceeds 2 GiB")
+    if size_sum > MAX_JOB_BYTES:
+        raise ValueError("Total cloud upload exceeds 750 MiB")
     total = 0.0
     clean_clips = []
     for clip in clips:
@@ -143,8 +145,8 @@ def validate_new_job(body):
             "sourceOutMs":int(round(stop)),
             "rate":float(rate),
         })
-    if not 0 < total <= MAX_DURATION:
-        raise ValueError("Edited lesson duration must be under 2 hours")
+    if not 0 < total <= MAX_JOB_DURATION_MS:
+        raise ValueError("PIN export supports a maximum of 30 minutes per lesson")
     brand = body.get("branding") or {}
     if not isinstance(brand, dict):
         raise ValueError("Branding must be an object")
@@ -159,6 +161,7 @@ def validate_new_job(body):
 def create(event):
     body = data_body(event)
     segments, clips, branding, duration = validate_new_job(body)
+    reserve_upload(event, sum(s["sizeBytes"] for s in segments), duration)
     job_id = str(uuid.uuid4())
     put_urls = []
     for segment in segments:
@@ -250,7 +253,7 @@ def cancel(job_id):
 def lambda_handler(event, context):
     try:
         if not valid_access(event):
-            return response(401,{"error":"Invalid rendering access code"})
+            return response(401,{"error":"Incorrect uploader PIN"})
         raw_path = event.get("rawPath") or "/"
         method = event.get("requestContext",{}).get("http",{}).get("method","GET")
         parts = [part for part in raw_path.split("/") if part]
@@ -267,6 +270,8 @@ def lambda_handler(event, context):
             if method=="DELETE":
                 return cancel(job_id)
         return response(404,{"error":"Unknown rendering endpoint"})
+    except UploadQuotaExceeded as exc:
+        return response(429,{"error":str(exc)})
     except ValueError as exc:
         return response(400,{"error":str(exc)})
     except ClientError as exc:

@@ -63,8 +63,8 @@ export function CloudExportControls({ studio }: { studio: BoardStudio }) {
 
   const start = useCallback(async () => {
     if (working || !plan.ok) return;
-    if (!token.trim()) {
-      setNotice('Enter the private AWS export access code first.');
+    if (!/^\d{4}$/.test(token.trim())) {
+      setNotice('Enter the 4-digit uploader PIN first.');
       return;
     }
     const abort = new AbortController();
@@ -85,7 +85,7 @@ export function CloudExportControls({ studio }: { studio: BoardStudio }) {
         onQueued: (id) => {
           setLastJobId(id);
           // A non-secret job reference makes cloud export recoverable after
-          // a tab refresh. Never save the private bearer code to storage.
+          // a tab refresh. Never save uploader PINs to storage.
           try {
             window.localStorage.setItem(jobStorageKey, id);
           } catch {
@@ -142,7 +142,7 @@ export function CloudExportControls({ studio }: { studio: BoardStudio }) {
   ]);
 
   const recheck = useCallback(async () => {
-    if (working || !lastJobId || !token.trim()) return;
+    if (working || !lastJobId || !/^\d{4}$/.test(token.trim())) return;
     setWorking(true);
     const controller = new AbortController();
     abortRef.current = controller;
@@ -177,16 +177,17 @@ export function CloudExportControls({ studio }: { studio: BoardStudio }) {
 
   return (
     <section aria-label="AWS cloud MP4 export" className="cloud-sync">
-      <h3>Cloud MP4 export — recommended for slow phones and computers</h3>
+      <h3>Cloud MP4 export — loud, clear voice on AWS</h3>
       <p className="board-note">
         Your device uploads the saved original clips; the private AWS server handles trimming,
-        encoding and joining. Your microphone voice remains in the video. Files are sent only after
-        you click the cloud export button.
+        encoding and joining. The AWS speech engine enhances the captured teacher voice with noise
+        reduction, automatic volume recovery, warmth and presence EQ, and a peak-safe loudness
+        boost. No synthetic speech is added. Files are sent only after you click export.
       </p>
       {plan.ok ? (
         <p className="board-note">
           {plan.value.clips.length} edited clip(s) · {(plan.value.durationMs / 60000).toFixed(1)}{' '}
-          min · output up to 1080p H.264/AAC MP4
+          min · up to 30 minutes and 750 MiB · 1080p H.264/AAC MP4
         </p>
       ) : (
         <p role="alert" className="pdf-inline-error">
@@ -194,13 +195,15 @@ export function CloudExportControls({ studio }: { studio: BoardStudio }) {
         </p>
       )}
       <label>
-        Private AWS export access code
+        Uploader PIN
         <input
           type="password"
           value={token}
           autoComplete="off"
-          maxLength={128}
-          placeholder="Paste your EduShare AWS export access code"
+          inputMode="numeric"
+          pattern="[0-9]{4}"
+          maxLength={4}
+          placeholder="Enter PIN"
           disabled={working}
           onChange={(e) => setToken(e.target.value)}
         />
@@ -246,7 +249,7 @@ export function CloudExportControls({ studio }: { studio: BoardStudio }) {
         <button
           className="btn"
           type="button"
-          disabled={working || !plan.ok || !token.trim()}
+          disabled={working || !plan.ok || !/^\d{4}$/.test(token.trim())}
           onClick={() => void start()}
         >
           {working ? 'Exporting on AWS…' : 'Export MP4 on AWS'}
@@ -265,7 +268,7 @@ export function CloudExportControls({ studio }: { studio: BoardStudio }) {
           <button
             className="btn"
             type="button"
-            disabled={working || !token.trim()}
+            disabled={working || !/^\d{4}$/.test(token.trim())}
             onClick={() => void recheck()}
           >
             Check last AWS export / renew download link
@@ -293,9 +296,10 @@ export function CloudExportControls({ studio }: { studio: BoardStudio }) {
       {output && <p className="board-note">Job reference: {output.jobId}</p>}
       <p role="status">{notice}</p>
       <p className="board-note">
-        Privacy: uploaded clips are removed from AWS after seven days; exported MP4s after thirty
-        days. The access code is held in memory only, not saved in the lesson or uploaded alongside
-        the video. The original lesson remains on this device.
+        The shared uploader PIN grants limited access; it is not a personal account login. Daily
+        quotas protect the server from excessive costs. Original videos are deleted from AWS after
+        seven days and exports after thirty days. The PIN is not saved in the lesson. Original
+        lesson recordings remain on this device.
       </p>
     </section>
   );

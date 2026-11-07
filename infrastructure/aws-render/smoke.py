@@ -16,7 +16,7 @@ import requests
 
 BASE=Path("/home/codexagent/workspace/edushareclass-deploy")
 CONFIG=json.loads((BASE/"tools/video-renderer/cloud-export-api.json").read_text())
-SECRET=(BASE/"tools/video-renderer/cloud-export-access.secret").read_text().strip()
+SECRET=os.environ.get("EDUSHARE_UPLOAD_PIN") or (BASE/"tools/video-renderer/cloud-export-access.secret").read_text().strip()
 URL=CONFIG["functionUrl"].rstrip("/")
 SOURCE=BASE/"logs/notesug-branded-export.webm"
 BRANDED=os.environ.get("EDUSHARE_SMOKE_BRANDED","0")=="1"

@@ -20,7 +20,7 @@ export interface ExportPlan {
 const LOCAL_MAX_CLIPS = 100;
 const LOCAL_MAX_DURATION_MS = 15 * 60_000;
 const CLOUD_MAX_CLIPS = 150;
-const CLOUD_MAX_DURATION_MS = 2 * 60 * 60_000;
+const CLOUD_MAX_DURATION_MS = 30 * 60_000;
 export function planExport(lesson: TimelineLesson): ExportPlan {
   return planEdits(lesson, LOCAL_MAX_CLIPS, LOCAL_MAX_DURATION_MS, false);
 }
@@ -46,7 +46,7 @@ function planEdits(
   if (!Number.isFinite(durationMs) || durationMs <= 0 || durationMs > maxDurationMs)
     throw new Error(
       cloud
-        ? 'Cloud export supports at most two hours of video.'
+        ? 'Cloud export supports at most 30 minutes of video.'
         : 'Local export supports at most 15 minutes. Use AWS cloud export for longer lessons.',
     );
   let cursor = 0;

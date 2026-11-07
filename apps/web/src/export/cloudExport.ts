@@ -120,9 +120,9 @@ export async function exportLessonCloud(options: {
     segments.push({ segmentId: id, mimeType: mediaType(blob), sizeBytes: blob.size });
     progress(Math.round((5 * i) / unique.length));
   }
-  if (segments.reduce((sum, s) => sum + s.sizeBytes, 0) > 2 * 1024 * 1024 * 1024)
-    throw new Error('Cloud export uploads cannot exceed 2 GiB per lesson.');
-  if (!token.trim()) throw new Error('Enter the private cloud export access code.');
+  if (segments.reduce((sum, s) => sum + s.sizeBytes, 0) > 750 * 1024 * 1024)
+    throw new Error('Cloud export uploads cannot exceed 750 MiB per lesson.');
+  if (!token.trim()) throw new Error('Enter the four-digit uploader PIN.');
 
   let jobId: string | null = null;
   let queued = false;
@@ -236,6 +236,6 @@ export async function checkCloudRenderJob(
 }> {
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(jobId))
     throw new Error('Saved AWS export job reference is invalid.');
-  if (!token.trim()) throw new Error('Enter the private AWS export access code.');
+  if (!token.trim()) throw new Error('Enter the four-digit uploader PIN.');
   return request(token, `/v1/jobs/${jobId}`, 'GET', signal);
 }
